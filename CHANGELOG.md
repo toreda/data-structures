@@ -44,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Build output moved from `dist/` to `dist/cjs/` and `dist/esm/`, and `package.json` now declares `exports`. Deep imports such as `@toreda/data-structures/dist/...` are no longer allowed; import from the package root.
 * `serializedState` is removed from `StackOptions`, `QueueOptions`, `PriorityQueueOptions`, and `ObjectPoolOptions`. Use the collection's `Byte*` subclass, or pass starting items to the constructor.
 * `toBinary()` is removed from `Stack` and `PriorityQueue`. Use `ByteStack` and `BytePriorityQueue`.
+* `PriorityQueue` constructor is now `(comparator, data?, options?)`, like `BinarySearchTree` and `RedBlackTree`. Starting elements are passed as an array in `data`, still heapified in O(n), instead of the `elements` option, and non-array `data` gives an empty queue instead of throwing. The `elements` option is removed from `PriorityQueueOptions`, which now only carries the shared `DataStructureOptions` entries (no effect on `PriorityQueue`, which allocates no element wrappers). `BytePriorityQueue` keeps `(codec, comparator, data?, options?)` and now heapifies array `data` instead of pushing it after `options.elements`.
+* `PriorityQueue` and `BytePriorityQueue` take a three-way comparator, the same shape as `BinarySearchTree` and `RedBlackTree`: negative when `a` is closer to the front than `b`. Replace `(a, b) => a < b` with `(a, b) => a - b`, or wrap the old function with `comparatorFromBoolean()`. A boolean comparator passed from JavaScript is not detected and leaves the queue unordered.
 * `CircularQueue.push(item)` and `insertFront(item)` take exactly one item. Use `pushArray()` or the new `insertFrontArray()` to add several.
 * `Queue.pop()` returns the removed item, or `null` when empty, instead of the queue.
 * `Queue` no longer exposes its `state`. `QueueState` now describes the `stringify()` JSON shape. `Queue.at()` returns `null` for non-integers and accepts negative positions, which count back from the rear.
@@ -59,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Iterators are typed `Iterator<ItemT>` instead of `Iterator<ItemT | null>`, and `next()` returns `IteratorResult<ItemT, undefined>`, so `for...of` gives `ItemT` and spread gives `ItemT[]` under strict mode. The final result is `{value: undefined, done: true}` instead of `{value: null, done: true}`, as for built-in iterators. The package `Iterator` interface's `next()` now returns `IteratorResult<ItemT, undefined>` instead of `IterableType<ItemT>`.
 * `Graph` requires `forEachNeighbor()`.
 * `Queue` and `PriorityQueue` `forEach` and `filter` use `thisArg` as passed unless it is `undefined`. Before, any falsy `thisArg` was replaced with the collection.
-* `new Queue({elements})` with a non-array `elements` gives an empty queue instead of throwing.
+* `Queue` constructor is now `(data?, options?)`, like `Stack` and `CircularQueue`. Starting items are passed as an array in `data`, front to rear, instead of the `elements` option, and non-array `data` gives an empty queue instead of throwing. The `elements` option is removed from `QueueOptions`, which now only carries the shared `DataStructureOptions` entries (no effect on `Queue`, which allocates no element wrappers). `ByteQueue` keeps `(codec, data?, options?)` and no longer queues `options.elements` before `data`.
 * `CircularQueue` allocates all `maxSize` slots at construction, so a very large `maxSize` costs its memory up front.
 * `ObjectPool.forEach` passes `state.used` as its third argument; slots from `size()` on hold `null`.
 * `ObjectPool` stores a hidden, non-enumerable symbol property on each object it constructs, to track its slot. Classes whose constructor freezes, seals, or prevents extensions on the instance cannot be pooled.
@@ -82,6 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `DirectedGraph.forEachNeighbor()` visits neighbors without allocating. `neighbors()`, `outEdges()`, and `inEdges()` accept an optional array to refill, and `findPath()` accepts an optional path to refill.
 * `children()` on every tree element accepts an optional array to refill.
 * `CircularQueue.insertFrontArray()`, `Queue.values()`, `Stack.values()`, and `PriorityQueue.values()`.
+* `PriorityQueue` is iterable with `for...of` and spread, in heap array order like `values()` and `forEach()`, through the new exported `PriorityQueueIterator`. It was the only collection without `[Symbol.iterator]`.
+* `comparatorFromBoolean()` converts a boolean "a comes first" function into a three-way comparator for any ordered collection.
 * Exported `QueueIterator` and `StackIterator`, and the callback types `QueueMethod`, `StackMethod`, `PriorityQueueMethod`, and `GraphNeighborMethod`.
 * `ByteDirectedGraph.toByteGraphEnvelope()` returns the graph container. `ByteDirectedGraph.toBytes()` serializes that container, while `toByteEnvelope()` holds the vertex items only. `ByteGraphEnvelopeEdge` is the type of one decoded edge.
 * `BinarySearchTree` and `RedBlackTree` `update()` keep the node's identity when an item moves, so query results that point at it can still `delete()` it.

@@ -9,7 +9,7 @@ const codec: ItemCodec<number> = {
 	decode: (bytes) => bytes[0]
 };
 
-const minFirst = (a: number, b: number): boolean => a < b;
+const minFirst = (a: number, b: number): number => a - b;
 
 const heapOrder = (queue: PriorityQueue<number>): number[] => {
 	const out: number[] = [];
@@ -43,10 +43,10 @@ describe('BytePriorityQueue', () => {
 			expect(drain(result)).toEqual([1, 2, 3, 4, 5]);
 		});
 
-		it('adds data after options.elements', () => {
-			const result = new BytePriorityQueue(codec, minFirst, [3, 0], {elements: [2, 1]});
+		it('ignores the removed elements option', () => {
+			const result = new BytePriorityQueue(codec, minFirst, [3, 0], {elements: [2, 1]} as any);
 
-			expect(drain(result)).toEqual([0, 1, 2, 3]);
+			expect(drain(result)).toEqual([0, 3]);
 		});
 
 		it('from envelope bytes', () => {
@@ -124,7 +124,7 @@ describe('BytePriorityQueue', () => {
 
 		it('round trips a heap of equal priorities', () => {
 			// Same priority (high nibble), distinct identities (low nibble).
-			const byPriority = (a: number, b: number): boolean => a >> 4 < b >> 4;
+			const byPriority = (a: number, b: number): number => (a >> 4) - (b >> 4);
 			const source = new BytePriorityQueue(codec, byPriority, [0x11, 0x12, 0x13, 0x14, 0x15]);
 			const bytes = source.toBytes();
 			const result = new BytePriorityQueue(codec, byPriority, bytes);

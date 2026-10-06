@@ -109,7 +109,7 @@ measure('Ring buffer', 'mnemonist CircularBuffer', () => {
 });
 
 measure('Binary heap', '@toreda/data-structures PriorityQueue', () => {
-	const q = new T.PriorityQueue((a, b) => a.p < b.p);
+	const q = new T.PriorityQueue((a, b) => a.p - b.p);
 	fill((x) => q.push(x));
 	return q;
 }, (q, i) => {

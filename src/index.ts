@@ -4,6 +4,7 @@ export type {DataStructureOptions} from './data/structure/options';
 export {arrayInsertAt} from './array/insert/at';
 export type {ArrayMethod} from './array/method';
 export {arrayRemoveAt} from './array/remove/at';
+export {comparatorFromBoolean} from './comparator/from/boolean';
 export type {Element} from './element';
 export {ElementPool} from './element/pool';
 
@@ -90,6 +91,7 @@ export type {OctTreePoint} from './oct/tree/point';
 export {BytePriorityQueue} from './byte/priority/queue';
 export {PriorityQueue} from './priority/queue';
 export type {PriorityQueueComparator} from './priority/queue/comparator';
+export {PriorityQueueIterator} from './priority/queue/iterator';
 export type {PriorityQueueMethod} from './priority/queue/method';
 export type {PriorityQueueOptions} from './priority/queue/options';
 export type {PriorityQueueState} from './priority/queue/state';

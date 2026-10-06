@@ -1406,7 +1406,15 @@ sky.nearest({x: -7, y: 0, z: 0})?.value()?.name; // returns 'rigel'
 
 ## **`PriorityQueue<T>`**
 
-Binary heap. The comparator returns `true` when `a` should be closer to the front than `b`, so `(a, b) => a < b` gives a min heap and `(a, b) => a > b` a max heap. With a strict comparator (`<` or `>`, not `<=` or `>=`), items of equal priority never swap. The heap is not stable: items of equal priority do not come out in insertion order. Every item, `null` included, goes to the comparator.
+Binary heap. The comparator has the same shape as the tree comparators and the `Array.prototype.sort` compare function: negative when `a` should be closer to the front than `b`, positive when it should be further back, `0` for equal priority. `(a, b) => a - b` gives a min heap and `(a, b) => b - a` a max heap, and items pop in the order `array.sort(comparator)` would put them. Items of equal priority never swap. The heap is not stable: items of equal priority do not come out in insertion order. Every item, `null` included, goes to the comparator.
+
+A boolean "a comes first" function, the comparator shape of earlier versions, can be converted with `comparatorFromBoolean()`. It calls the function up to twice per comparison, so write a three-way comparator on hot paths:
+
+```typescript
+import {PriorityQueue, comparatorFromBoolean} from '@toreda/data-structures';
+
+const fromBoolean = new PriorityQueue<number>(comparatorFromBoolean((a: number, b: number) => a < b));
+```
 
 The backing array keeps its largest size, so once it has grown, `push()` and `pop()` allocate nothing.
 
@@ -1419,14 +1427,13 @@ Typescript
 import {PriorityQueue, type PriorityQueueComparator} from '@toreda/data-structures';
 
 // Instantiate. The comparator is required and throws when it is not a function.
-const minFirst: PriorityQueueComparator<number> = (a, b) => a < b;
+const minFirst: PriorityQueueComparator<number> = (a, b) => a - b;
 const priorityQueue = new PriorityQueue<number>(minFirst);
-const priorityQueueWithElements = new PriorityQueue<number>(minFirst, {
-	elements: [5, 3, 7, 1]
-});
+// Starting items are heapified in O(n). Options come third, as for the trees.
+const priorityQueueWithElements = new PriorityQueue<number>(minFirst, [5, 3, 7, 1]);
 priorityQueueWithElements.peek(); // returns 1
 
-const maxFirst = new PriorityQueue<number>((a, b) => a > b, {elements: [5, 3, 7, 1]});
+const maxFirst = new PriorityQueue<number>((a, b) => b - a, [5, 3, 7, 1]);
 maxFirst.peek(); // returns 7
 
 // Add elements to the queue
@@ -1454,6 +1461,12 @@ priorityQueue.forEach((elem, index, queue) => {
 
 // Items in heap order, as a new array
 priorityQueue.values(); // returns [10, 20]
+
+// for...of and spread also visit items in heap order. Pop to visit them by priority.
+for (const elem of priorityQueue) {
+	console.log(elem);
+}
+[...priorityQueue]; // returns [10, 20]
 ```
 
 ### Pop and reset a priority queue
@@ -1619,7 +1632,7 @@ import {Queue} from '@toreda/data-structures';
 // Instantiate
 const myQueue = new Queue<string>();
 // Instantiate with starting elements, listed front to rear
-const myQueueWithElements = new Queue<string>({elements: ['a', 'b', 'c']});
+const myQueueWithElements = new Queue<string>(['a', 'b', 'c']);
 myQueueWithElements.front(); // returns 'a'
 
 // Add elements to the rear of the queue

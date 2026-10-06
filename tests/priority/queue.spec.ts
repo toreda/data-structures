@@ -1,4 +1,6 @@
 import {PriorityQueue} from '../../src/priority/queue';
+import {PriorityQueueIterator} from '../../src/priority/queue/iterator';
+import {comparatorFromBoolean} from '../../src/comparator/from/boolean';
 import {type PriorityQueueOptions} from '../../src/priority/queue/options';
 
 const repeat = (n: number, f: (n: number) => unknown) => {
@@ -10,16 +12,12 @@ const repeat = (n: number, f: (n: number) => unknown) => {
 const INIT_VALUES = [90, 70, 50, 30, 10, 80, 60, 40, 20];
 const loadQueue = (queue: PriorityQueue<any>) => repeat(9, (n: number) => queue.push(INIT_VALUES[8 - n]));
 
-const comparator = function (a: number, b: number) {
-	if (typeof b !== 'number') {
-		return false;
+const comparator = function (a: number, b: number): number {
+	if (typeof a !== 'number' || typeof b !== 'number') {
+		return 0;
 	}
 
-	if (typeof a !== 'number') {
-		return false;
-	}
-
-	return a <= b;
+	return a - b;
 };
 
 describe('PriorityQueue', () => {
@@ -41,13 +39,17 @@ describe('PriorityQueue', () => {
 			expect(result.size()).toBe(0);
 		});
 
-		it('with options', () => {
-			const options: PriorityQueueOptions<any> = {
-				elements: [1, 2, 3]
-			};
-			const result = new PriorityQueue(comparator, options);
+		it('with data and options', () => {
+			const options: PriorityQueueOptions<any> = {allowUndefinedItem: true};
+			const result = new PriorityQueue(comparator, [3, 1, 2], options);
 			expect(result).toBeInstanceOf(PriorityQueue);
 			expect(result.size()).toBe(3);
+			expect(result.peek()).toBe(1);
+		});
+
+		it('ignores the removed elements option', () => {
+			const result = new PriorityQueue(comparator, null, {elements: [1, 2, 3]} as any);
+			expect(result.size()).toBe(0);
 		});
 
 		it('stringify queue', () => {
@@ -58,7 +60,7 @@ describe('PriorityQueue', () => {
 		it('stringify returns null instead of throwing', () => {
 			const circular: any = {};
 			circular.self = circular;
-			const result = new PriorityQueue<any>(() => false, {elements: [circular]});
+			const result = new PriorityQueue<any>(() => 0, [circular]);
 			expect(() => result.stringify()).not.toThrow();
 			expect(result.stringify()).toBeNull();
 
@@ -68,7 +70,7 @@ describe('PriorityQueue', () => {
 		});
 
 		it('ignores the removed serializedState option', () => {
-			const result = new PriorityQueue(comparator, {
+			const result = new PriorityQueue(comparator, null, {
 				serializedState: '{"type":"PriorityQueue","elements":[4]}'
 			} as any);
 			expect(result.size()).toBe(0);
@@ -83,11 +85,12 @@ describe('PriorityQueue', () => {
 				const result = new PriorityQueue(null as any);
 				console.log(result);
 			}).toThrow();
+		});
 
-			expect(() => {
-				const result = new PriorityQueue(comparator, {elements: 'adsf' as any});
-				console.log(result);
-			}).toThrow();
+		it('ignores non-array data instead of throwing', () => {
+			expect(new PriorityQueue(comparator, 'adsf' as any).size()).toBe(0);
+			expect(new PriorityQueue(comparator, {elements: [4]} as any).size()).toBe(0);
+			expect(new PriorityQueue(comparator, null).size()).toBe(0);
 		});
 	});
 
@@ -101,32 +104,32 @@ describe('PriorityQueue', () => {
 		};
 
 		it('heapifies small unsorted element sets on construction', () => {
-			const result = new PriorityQueue<number>(comparator, {elements: [5, 1, 3]});
+			const result = new PriorityQueue<number>(comparator, [5, 1, 3]);
 			expect(drain(result)).toEqual([1, 3, 5]);
 		});
 
 		it('heapifies larger unsorted element sets on construction', () => {
 			const elements = [9, 4, 7, 1, 8, 2, 6, 3, 5, 0];
-			const result = new PriorityQueue<number>(comparator, {elements});
+			const result = new PriorityQueue<number>(comparator, elements);
 			expect(drain(result)).toEqual([...elements].sort((a, b) => a - b));
 		});
 
 		it('preserves heap order after query delete requiring sift up', () => {
 			const elements = [0, 50, 1, 60, 70, 2, 3, 61, 62, 71, 72, 2.5];
-			const result = new PriorityQueue<number>(comparator, {elements});
+			const result = new PriorityQueue<number>(comparator, elements);
 			result.query((n) => n === 60)[0].delete();
 			expect(drain(result)).toEqual(elements.filter((n) => n !== 60).sort((a, b) => a - b));
 		});
 
 		it('preserves heap order after query delete requiring sift down', () => {
 			const elements = [1, 2, 10, 3, 4, 11, 12];
-			const result = new PriorityQueue<number>(comparator, {elements});
+			const result = new PriorityQueue<number>(comparator, elements);
 			result.query((n) => n === 2)[0].delete();
 			expect(drain(result)).toEqual(elements.filter((n) => n !== 2).sort((a, b) => a - b));
 		});
 
 		it('preserves heap order after query delete of last element and root', () => {
-			const result = new PriorityQueue<number>(comparator, {elements: [1, 2, 3]});
+			const result = new PriorityQueue<number>(comparator, [1, 2, 3]);
 			result.query((n) => n === 3)[0].delete();
 			result.query((n) => n === 1)[0].delete();
 			expect(drain(result)).toEqual([2]);
@@ -134,12 +137,12 @@ describe('PriorityQueue', () => {
 	});
 
 	describe('EQUAL PRIORITIES', () => {
-		const strict = (a: number, b: number): boolean => a < b;
+		const strict = (a: number, b: number): number => a - b;
 
 		it('a heap of equal keys is already a heap', () => {
 			const elements = [5, 5, 5, 5, 5, 5, 5];
 			const spy = jest.fn(strict);
-			const result = new PriorityQueue<number>(spy, {elements});
+			const result = new PriorityQueue<number>(spy, elements);
 			// isHeap passes with one comparison per non-root element; no heapify.
 			expect(spy).toHaveBeenCalledTimes(elements.length - 1);
 			expect(result.size()).toBe(elements.length);
@@ -151,7 +154,7 @@ describe('PriorityQueue', () => {
 				{p: 1, id: 'b'},
 				{p: 1, id: 'c'}
 			];
-			const result = new PriorityQueue<{p: number; id: string}>((a, b) => a.p < b.p);
+			const result = new PriorityQueue<{p: number; id: string}>((a, b) => a.p - b.p);
 			tagged.forEach((t) => result.push(t));
 			expect(result.peek()?.id).toBe('a');
 
@@ -161,7 +164,7 @@ describe('PriorityQueue', () => {
 		});
 
 		it('pop does not sift an equal key down', () => {
-			const result = new PriorityQueue<number>(strict, {elements: [1, 2, 2, 2, 2]});
+			const result = new PriorityQueue<number>(strict, [1, 2, 2, 2, 2]);
 			expect(result.pop()).toBe(1);
 			const order: number[] = [];
 			result.forEach((n) => order.push(n));
@@ -180,7 +183,7 @@ describe('PriorityQueue', () => {
 				values.push(rand());
 			}
 
-			const result = new PriorityQueue<number>(strict, {elements: values.slice(0, 100)});
+			const result = new PriorityQueue<number>(strict, values.slice(0, 100));
 			values.slice(100).forEach((v) => result.push(v));
 			result.query((v) => v === 3).forEach((r) => r.delete());
 
@@ -193,7 +196,7 @@ describe('PriorityQueue', () => {
 		});
 
 		it('filter result is a heap with duplicates', () => {
-			const result = new PriorityQueue<number>(strict, {elements: [4, 1, 3, 1, 2, 4, 3]});
+			const result = new PriorityQueue<number>(strict, [4, 1, 3, 1, 2, 4, 3]);
 			const filtered = result.filter((v) => v !== 2);
 			const drained: number[] = [];
 			while (!filtered.isEmpty()) {
@@ -206,12 +209,12 @@ describe('PriorityQueue', () => {
 
 	describe('NULL ELEMENTS', () => {
 		it('passes null to the comparator, which decides its rank', () => {
-			const nullLast = (a: number | null, b: number | null): boolean => {
-				if (a === null) return false;
-				if (b === null) return true;
-				return a < b;
+			const nullLast = (a: number | null, b: number | null): number => {
+				if (a === null) return b === null ? 0 : 1;
+				if (b === null) return -1;
+				return a - b;
 			};
-			const result = new PriorityQueue<number | null>(nullLast, {elements: [null, 5, null, 2, 8]});
+			const result = new PriorityQueue<number | null>(nullLast, [null, 5, null, 2, 8]);
 			result.push(null).push(1);
 
 			const drained: (number | null)[] = [];
@@ -224,8 +227,8 @@ describe('PriorityQueue', () => {
 
 	describe('NO HIDDEN ALLOCATION', () => {
 		it('push and pop build no child index objects', () => {
-			const strict = (a: number, b: number): boolean => a < b;
-			const result = new PriorityQueue<number>(strict, {elements: [9, 8, 7, 6, 5, 4, 3, 2, 1]});
+			const strict = (a: number, b: number): number => a - b;
+			const result = new PriorityQueue<number>(strict, [9, 8, 7, 6, 5, 4, 3, 2, 1]);
 			const proto = Object.getPrototypeOf(result);
 			expect(proto.getChildren).toBeUndefined();
 			expect(proto.getNext).toBeUndefined();
@@ -276,7 +279,7 @@ describe('PriorityQueue', () => {
 		});
 
 		it('forEach third argument never exposes spare backing slots', () => {
-			const queue = new PriorityQueue<number>((a, b) => a < b, {elements: [5, 4, 3, 2, 1]});
+			const queue = new PriorityQueue<number>((a, b) => a - b, [5, 4, 3, 2, 1]);
 			queue.pop();
 			queue.pop();
 
@@ -307,7 +310,7 @@ describe('PriorityQueue', () => {
 	});
 
 	describe('CAPACITY', () => {
-		const strict = (a: number, b: number): boolean => a < b;
+		const strict = (a: number, b: number): number => a - b;
 		const backingOf = <T>(queue: PriorityQueue<T>): (T | undefined)[] => (queue as any)._elements;
 
 		it('pop keeps the backing array at its high-water length', () => {
@@ -337,9 +340,9 @@ describe('PriorityQueue', () => {
 
 		it('drops references to popped, deleted, and cleared elements', () => {
 			type Item = {p: number};
-			const byP = (a: Item, b: Item): boolean => a.p < b.p;
+			const byP = (a: Item, b: Item): number => a.p - b.p;
 			const items: Item[] = [{p: 1}, {p: 2}, {p: 3}, {p: 4}];
-			const queue = new PriorityQueue<Item>(byP, {elements: items});
+			const queue = new PriorityQueue<Item>(byP, items);
 
 			expect(queue.pop()).toBe(items[0]);
 			expect(backingOf(queue)).not.toContain(items[0]);
@@ -355,7 +358,7 @@ describe('PriorityQueue', () => {
 		});
 
 		it('ignores spare slots in every read', () => {
-			const queue = new PriorityQueue<number>(strict, {elements: [5, 1, 4, 2, 3]});
+			const queue = new PriorityQueue<number>(strict, [5, 1, 4, 2, 3]);
 			queue.pop();
 			queue.pop();
 
@@ -566,6 +569,90 @@ describe('PriorityQueue', () => {
 			instance.push(30);
 			instance.query((v) => v === 30)[0].delete();
 			expect(instance.size()).toBe(0);
+		});
+	});
+
+	describe('COMPARATOR', () => {
+		const drainAll = <T>(queue: PriorityQueue<T>): T[] => {
+			const popped: T[] = [];
+			while (!queue.isEmpty()) {
+				popped.push(queue.pop() as T);
+			}
+			return popped;
+		};
+
+		it('pops in Array.prototype.sort order for the same comparator', () => {
+			const items = [5, 1, 9, 3, 7, 3, 0, 8];
+			const byNumber = (a: number, b: number): number => a - b;
+
+			expect(drainAll(new PriorityQueue<number>(byNumber, items))).toEqual([...items].sort(byNumber));
+		});
+
+		it('makes a max-heap with a reversed comparator', () => {
+			const queue = new PriorityQueue<number>((a, b) => b - a, [5, 1, 9, 3]);
+
+			expect(drainAll(queue)).toEqual([9, 5, 3, 1]);
+		});
+
+		it('accepts a boolean comparator through comparatorFromBoolean', () => {
+			const minFirst = comparatorFromBoolean((a: number, b: number) => a < b);
+			const queue = new PriorityQueue<number>(minFirst, [5, 1, 9, 3]);
+
+			expect(drainAll(queue)).toEqual([1, 3, 5, 9]);
+		});
+	});
+
+	describe('ITERATOR', () => {
+		const byNumber = (a: number, b: number): number => a - b;
+
+		it('visits every item in heap array order with for of and spread', () => {
+			const queue = new PriorityQueue<number>(byNumber, [5, 1, 4, 2, 3]);
+			const visited: number[] = [];
+
+			for (const item of queue) {
+				visited.push(item);
+			}
+
+			expect(visited).toEqual(queue.values());
+			expect([...queue]).toEqual(queue.values());
+			expect(visited[0]).toBe(1);
+		});
+
+		it('matches forEach order', () => {
+			const queue = new PriorityQueue<number>(byNumber, [8, 3, 6, 1, 7]);
+			const order: number[] = [];
+			queue.forEach((item) => order.push(item));
+
+			expect([...queue]).toEqual(order);
+		});
+
+		it('ends with an undefined value and reuses one result object', () => {
+			const queue = new PriorityQueue<number>(byNumber, [2]);
+			const iterator = queue[Symbol.iterator]();
+
+			expect(iterator).toBeInstanceOf(PriorityQueueIterator);
+			const first = iterator.next();
+			expect(first).toEqual({value: 2, done: false});
+			const end = iterator.next();
+			expect(end).toBe(first);
+			expect(end).toEqual({value: undefined, done: true});
+		});
+
+		it('visits nothing for an empty or drained queue', () => {
+			const queue = new PriorityQueue<number>(byNumber, [3, 1, 2]);
+			queue.pop();
+			queue.pop();
+			queue.pop();
+
+			expect([...queue]).toEqual([]);
+			expect([...new PriorityQueue<number>(byNumber)]).toEqual([]);
+		});
+
+		it('skips spare slots left by pops', () => {
+			const queue = new PriorityQueue<number>(byNumber, [4, 3, 2, 1]);
+			queue.pop();
+
+			expect([...queue].sort(byNumber)).toEqual([2, 3, 4]);
 		});
 	});
 });

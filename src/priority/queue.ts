@@ -1,5 +1,6 @@
 import {type DataStructure} from '../data/structure';
 import {type PriorityQueueComparator as Comparator} from './queue/comparator';
+import {PriorityQueueIterator} from './queue/iterator';
 import {type PriorityQueueMethod} from './queue/method';
 import {type PriorityQueueOptions as Options} from './queue/options';
 import {type QueryFilter} from '../query/filter';
@@ -16,9 +17,10 @@ const queryKey = (): string | null => null;
  * Heap data structure which operates as a Min Heap or Max Heap
  * depending on user provided Comparator Function provided.
  *
- * The comparator returns true when `a` must be closer to the front than `b`.
- * Elements only move when one strictly beats the other, so equal priorities
- * stay where they are. Every element, including `null`, is passed to the
+ * The comparator is three-way, like the tree comparators: negative when `a`
+ * must be closer to the front than `b`, so `(a, b) => a - b` makes a min-heap.
+ * Elements only move when one compares strictly before the other, so equal
+ * priorities stay where they are. Every element, including `null`, is passed to the
  * comparator, so a queue that holds `null` needs a comparator that handles it.
  *
  * Push, pop, and query deletes allocate nothing. The backing array never
@@ -45,14 +47,16 @@ export class PriorityQueue<ItemT> implements DataStructure<ItemT> {
 	public readonly allowUndefinedItem: boolean;
 
 	/**
-	 * @param comparator	Returns true when `a` must be closer to the front than `b`.
-	 * 						Required.
-	 * @param options		Optional config. `elements` are heapified on creation,
-	 * 						and undefined entries follow `allowUndefinedItem`.
-	 * @throws				When `comparator` is not a function, or when
-	 * 						`options.elements` is present but not an array.
+	 * @param comparator	Three-way comparison, negative when `a` must be closer
+	 * 						to the front than `b`. Required.
+	 * @param data			Items added on creation and heapified in O(n). Any other
+	 * 						input is ignored. Undefined items follow
+	 * 						`allowUndefinedItem`.
+	 * @param options		Optional config. Each option falls back to its default
+	 * 						when missing or invalid.
+	 * @throws				When `comparator` is not a function.
 	 */
-	constructor(comparator: Comparator<ItemT>, options?: Options<ItemT>) {
+	constructor(comparator: Comparator<ItemT>, data?: ItemT[] | null, options?: Options<ItemT> | null) {
 		if (typeof comparator !== 'function') {
 			throw new Error('Must have a comparator function for priority queue to operate properly');
 		}
@@ -60,9 +64,18 @@ export class PriorityQueue<ItemT> implements DataStructure<ItemT> {
 		this.comparator = comparator;
 		this.allowUndefinedItem = booleanValue(true, options?.allowUndefinedItem);
 
-		this._elements = this.parseOptions(options);
+		this._elements = this.copyData(data);
 		this._size = this._elements.length;
 		this.heapify();
+	}
+
+	/**
+	 * Iterate items in heap array order (not priority order), as `values()`
+	 * and `forEach()` do. Allocates one iterator per loop; `forEach()` is the
+	 * non-allocating walk.
+	 */
+	[Symbol.iterator](): PriorityQueueIterator<ItemT> {
+		return new PriorityQueueIterator<ItemT>(this, this._elements);
 	}
 
 	public peek(): ItemT | null {
@@ -167,7 +180,11 @@ export class PriorityQueue<ItemT> implements DataStructure<ItemT> {
 	 * @param thisArg	Value used as `this` when calling func. Defaults to this queue.
 	 */
 	public filter(func: PriorityQueueMethod<ItemT, boolean>, thisArg?: unknown): PriorityQueue<ItemT> {
-		return this.filterInto(new PriorityQueue<ItemT>(this.comparator, this.options()), func, thisArg);
+		return this.filterInto(
+			new PriorityQueue<ItemT>(this.comparator, null, this.options()),
+			func,
+			thisArg
+		);
 	}
 
 	/**
@@ -306,7 +323,7 @@ export class PriorityQueue<ItemT> implements DataStructure<ItemT> {
 	 * element only moves past another when it strictly beats it.
 	 */
 	private beats(a: ItemT, b: ItemT): boolean {
-		return this.comparator(a, b);
+		return this.comparator(a, b) < 0;
 	}
 
 	/**
@@ -389,21 +406,20 @@ export class PriorityQueue<ItemT> implements DataStructure<ItemT> {
 		return true;
 	}
 
-	private parseOptions(options?: Options<ItemT>): ItemT[] {
-		if (options?.elements == null) {
-			return [];
-		}
-
-		if (!Array.isArray(options.elements)) {
-			throw new Error('PriorityQueue options.elements must be an array');
-		}
-
-		const source = options.elements;
+	/**
+	 * Copy of the constructor's array data without skipped undefined items,
+	 * not yet in heap order. Empty for any other input.
+	 */
+	private copyData(data?: ItemT[] | null): ItemT[] {
 		const elements: ItemT[] = [];
 
-		for (let i = 0; i < source.length; i++) {
-			if (!undefinedItemSkip(source[i], this.allowUndefinedItem, 'PriorityQueue')) {
-				elements.push(source[i]);
+		if (!Array.isArray(data)) {
+			return elements;
+		}
+
+		for (let i = 0; i < data.length; i++) {
+			if (!undefinedItemSkip(data[i], this.allowUndefinedItem, 'PriorityQueue')) {
+				elements.push(data[i]);
 			}
 		}
 

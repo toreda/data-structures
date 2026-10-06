@@ -47,7 +47,7 @@ measure('Stack push + pop', () => new L.Stack(), (s, i) => {
 	s.pop();
 });
 measure('PriorityQueue push + pop (100 items)', () => {
-	const p = new L.PriorityQueue((a, b) => a < b);
+	const p = new L.PriorityQueue((a, b) => a - b);
 	for (let i = 0; i < 100; i++) p.push(i);
 	return p;
 }, (p, i) => {

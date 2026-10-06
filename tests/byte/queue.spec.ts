@@ -57,9 +57,9 @@ describe('ByteQueue', () => {
 			expect(new ByteQueue(codec, bytes, null).size()).toBe(0);
 		});
 
-		it('passes options to Queue, queuing options.elements before data', () => {
-			expect(new ByteQueue(codec, [3, 4], {elements: [1, 2]}).values()).toEqual([1, 2, 3, 4]);
-			expect(new ByteQueue(codec, null, {elements: [1, 2]}).values()).toEqual([1, 2]);
+		it('ignores the removed elements option', () => {
+			expect(new ByteQueue(codec, [3, 4], {elements: [1, 2]} as any).values()).toEqual([3, 4]);
+			expect(new ByteQueue(codec, null, {elements: [1, 2]} as any).values()).toEqual([]);
 		});
 
 		it('ignores invalid data instead of throwing', () => {

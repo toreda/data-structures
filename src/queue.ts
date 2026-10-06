@@ -44,15 +44,15 @@ export class Queue<ItemT> implements DataStructure<ItemT> {
 	public readonly allowUndefinedItem: boolean;
 
 	/**
-	 * @param options	Optional config. `elements` are copied into the queue
-	 * 					front to rear. A missing or non-array `elements` gives an
-	 * 					empty queue, and undefined entries follow
-	 * 					`allowUndefinedItem`.
+	 * @param data		Items copied into the queue front to rear on creation.
+	 * 					Any other input gives an empty queue. Undefined items
+	 * 					follow `allowUndefinedItem`.
+	 * @param options	Optional config. Each option falls back to its default
+	 * 					when missing or invalid.
 	 */
-	constructor(options?: QueueOptions<ItemT> | null) {
+	constructor(data?: ItemT[] | null, options?: QueueOptions<ItemT> | null) {
 		this.allowUndefinedItem = booleanValue(true, options?.allowUndefinedItem);
-		const elements = options?.elements;
-		const count = Array.isArray(elements) ? elements.length : 0;
+		const count = Array.isArray(data) ? data.length : 0;
 
 		let capacity = MIN_CAPACITY;
 		while (capacity < count) {
@@ -63,9 +63,9 @@ export class Queue<ItemT> implements DataStructure<ItemT> {
 		this._front = 0;
 		this._size = 0;
 
-		if (Array.isArray(elements)) {
-			for (let i = 0; i < elements.length; i++) {
-				this.push(elements[i]);
+		if (Array.isArray(data)) {
+			for (let i = 0; i < data.length; i++) {
+				this.push(data[i]);
 			}
 		}
 	}
@@ -195,7 +195,7 @@ export class Queue<ItemT> implements DataStructure<ItemT> {
 	 * 					queue when omitted.
 	 */
 	public filter(func: QueueMethod<ItemT, boolean>, thisArg?: unknown): Queue<ItemT> {
-		const result = new Queue<ItemT>(this.options());
+		const result = new Queue<ItemT>(null, this.options());
 		this.filterInto(result, func, thisArg);
 
 		return result;

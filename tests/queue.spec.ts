@@ -47,19 +47,21 @@ describe('Queue', () => {
 			expect(result.size()).toBe(0);
 		});
 
-		it('with options', () => {
-			const options: QueueOptions<any> = {
-				elements: [1, 2, 3]
-			};
-			const result = new Queue(options);
+		it('with data and options', () => {
+			const options: QueueOptions<any> = {allowUndefinedItem: true};
+			const result = new Queue([1, 2, 3], options);
 			expect(result).toBeInstanceOf(Queue);
 			expect(result.size()).toBe(3);
 			expect(result.values()).toEqual([1, 2, 3]);
 		});
 
+		it('ignores the removed elements option', () => {
+			expect(new Queue(null, {elements: [1, 2, 3]} as any).size()).toBe(0);
+		});
+
 		it('does not keep a reference to the provided array', () => {
 			const elements = [1, 2, 3];
-			const result = new Queue({elements});
+			const result = new Queue(elements);
 			elements.push(4);
 			result.push(5);
 
@@ -70,19 +72,20 @@ describe('Queue', () => {
 		it('holds more starting elements than the minimum capacity', () => {
 			const elements = Array.from({length: 100}, (_, i) => i);
 
-			expect(new Queue({elements}).values()).toEqual(elements);
+			expect(new Queue(elements).values()).toEqual(elements);
 		});
 
-		it('ignores invalid options instead of throwing', () => {
-			expect(new Queue({elements: 'adsf' as any}).size()).toBe(0);
-			expect(new Queue({elements: null as any}).size()).toBe(0);
+		it('ignores invalid data and options instead of throwing', () => {
+			expect(new Queue('adsf' as any).size()).toBe(0);
+			expect(new Queue({elements: [4]} as any).size()).toBe(0);
 			expect(new Queue(null).size()).toBe(0);
-			expect(new Queue('nope' as any).size()).toBe(0);
-			expect(new Queue({serializedState: '{"type":"Queue","elements":[4]}'} as any).size()).toBe(0);
+			expect(new Queue(null, 'nope' as any).size()).toBe(0);
+			const removed = {serializedState: '{"type":"Queue","elements":[4]}'} as any;
+			expect(new Queue(null, removed).size()).toBe(0);
 		});
 
 		it('has no public state or byte methods', () => {
-			const q = new Queue<number>({elements: [1]}) as any;
+			const q = new Queue<number>([1]) as any;
 
 			expect(q.state).toBeUndefined();
 			expect(q.toBytes).toBeUndefined();
@@ -127,7 +130,7 @@ describe('Queue', () => {
 		});
 
 		it('pop returns the removed item, or null when empty', () => {
-			const q = new Queue<string>({elements: ['a', 'b']});
+			const q = new Queue<string>(['a', 'b']);
 
 			expect(q.pop()).toBe('a');
 			expect(q.pop()).toBe('b');
@@ -137,14 +140,14 @@ describe('Queue', () => {
 
 		it('pop releases the reference to the removed item', () => {
 			const item = {id: 1};
-			const q = new Queue<object>({elements: [item]});
+			const q = new Queue<object>([item]);
 			q.pop();
 
 			expect(bufferOf(q)).not.toContain(item);
 		});
 
 		it('pop does not move the remaining items', () => {
-			const q = new Queue<number>({elements: [1, 2, 3, 4]});
+			const q = new Queue<number>([1, 2, 3, 4]);
 			const buffer = bufferOf(q);
 			q.pop();
 
@@ -219,7 +222,7 @@ describe('Queue', () => {
 		});
 
 		it('returns null outside the queue or for non-integers', () => {
-			const q = new Queue<number>({elements: [1, 2, 3]});
+			const q = new Queue<number>([1, 2, 3]);
 
 			expect(q.at(3)).toBeNull();
 			expect(q.at(-4)).toBeNull();
@@ -396,7 +399,7 @@ describe('Queue', () => {
 			});
 
 			it('reuses one result object', () => {
-				const iter = new QueueIterator(new Queue<number>({elements: [1, 2]}));
+				const iter = new QueueIterator(new Queue<number>([1, 2]));
 				const first = iter.next();
 
 				expect(first.value).toBe(1);
@@ -454,7 +457,7 @@ describe('Queue', () => {
 		});
 
 		it('matches front to rear and an empty filter array matches nothing', () => {
-			const q = new Queue<number>({elements: [10, 20, 30, 40, 50]});
+			const q = new Queue<number>([10, 20, 30, 40, 50]);
 
 			expect(q.query((v) => v > 15).map((r) => r.element)).toEqual([20, 30, 40, 50]);
 			expect(q.query([(v) => v > 15, (v) => v < 45]).map((r) => r.element)).toEqual([20, 30, 40]);
@@ -462,7 +465,7 @@ describe('Queue', () => {
 		});
 
 		it('stops calling filters once the limit is reached', () => {
-			const q = new Queue<number>({elements: [10, 20, 30, 40, 50]});
+			const q = new Queue<number>([10, 20, 30, 40, 50]);
 			let calls = 0;
 			const results = q.query(
 				() => {
@@ -477,7 +480,7 @@ describe('Queue', () => {
 		});
 
 		it('ignores an invalid limit', () => {
-			const q = new Queue<number>({elements: [1, 2, 3]});
+			const q = new Queue<number>([1, 2, 3]);
 
 			for (const limit of [0, -1, NaN, 'a', null]) {
 				expect(q.query(() => true, {limit: limit as any}).length).toBe(3);
@@ -491,7 +494,7 @@ describe('Queue', () => {
 		});
 
 		it('index tracks the current position from the front', () => {
-			const q = new Queue<number>({elements: [10, 20, 30, 40, 50]});
+			const q = new Queue<number>([10, 20, 30, 40, 50]);
 			const [match] = q.query((v) => v === 30);
 
 			expect(match.index()).toBe(2);
@@ -523,8 +526,8 @@ describe('Queue', () => {
 			const circular: any = {};
 			circular.self = circular;
 
-			expect(new Queue<bigint>({elements: [BigInt(1)]}).stringify()).toBeNull();
-			expect(new Queue<any>({elements: [circular]}).stringify()).toBeNull();
+			expect(new Queue<bigint>([BigInt(1)]).stringify()).toBeNull();
+			expect(new Queue<any>([circular]).stringify()).toBeNull();
 		});
 	});
 
@@ -532,7 +535,7 @@ describe('Queue', () => {
 		it('remove every item and keep the ring buffer', () => {
 			const a = {id: 'a'};
 			const b = {id: 'b'};
-			const q = new Queue<object>({elements: [a, b]});
+			const q = new Queue<object>([a, b]);
 			const buffer = bufferOf(q);
 
 			expect(q.clearElements()).toBe(q);

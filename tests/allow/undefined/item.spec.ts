@@ -18,7 +18,7 @@ const dirty = [1, undefined, 2] as number[];
 const strict = {allowUndefinedItem: false};
 
 /** Reads properties of the item, so calling it with undefined would throw. */
-const byNumber = (a: number, b: number): boolean => a.valueOf() < b.valueOf();
+const byNumber = (a: number, b: number): number => a - b;
 const keyOf = (item: {key: string}): string => item.key;
 const locate3d = (item: {x: number; y: number; z: number}): {x: number; y: number; z: number} => ({
 	x: item.x,
@@ -69,7 +69,7 @@ describe('allowUndefinedItem', () => {
 
 	describe('Queue', () => {
 		it('skips undefined in options.elements and push by default', () => {
-			const queue = new Queue<number>({elements: dirty});
+			const queue = new Queue<number>(dirty);
 
 			expect(queue.size()).toBe(2);
 			expect(queue.values()).toEqual([1, 2]);
@@ -78,14 +78,14 @@ describe('allowUndefinedItem', () => {
 		});
 
 		it('throws when disallowed', () => {
-			expect(() => new Queue<number>({elements: dirty, ...strict})).toThrow();
-			expect(() => new Queue<number>(strict).push(undefined as any)).toThrow();
+			expect(() => new Queue<number>(dirty, strict)).toThrow();
+			expect(() => new Queue<number>(null, strict).push(undefined as any)).toThrow();
 		});
 	});
 
 	describe('PriorityQueue', () => {
 		it('skips undefined in options.elements and push by default', () => {
-			const queue = new PriorityQueue<number>(byNumber, {elements: dirty});
+			const queue = new PriorityQueue<number>(byNumber, dirty);
 
 			expect(queue.size()).toBe(2);
 			expect(queue.pop()).toBe(1);
@@ -94,8 +94,8 @@ describe('allowUndefinedItem', () => {
 		});
 
 		it('throws when disallowed', () => {
-			expect(() => new PriorityQueue<number>(byNumber, {elements: dirty, ...strict})).toThrow();
-			expect(() => new PriorityQueue<number>(byNumber, strict).push(undefined as any)).toThrow();
+			expect(() => new PriorityQueue<number>(byNumber, dirty, strict)).toThrow();
+			expect(() => new PriorityQueue<number>(byNumber, null, strict).push(undefined as any)).toThrow();
 		});
 	});
 

@@ -27,15 +27,14 @@ export class BytePriorityQueue<ItemT> extends PriorityQueue<ItemT> implements By
 	 * 						items are generic and the queue cannot encode them itself.
 	 * @param comparator	As for `PriorityQueue`. Required. Comes after the codec
 	 * 						since both are required.
-	 * @param data			Items pushed on creation: an array, or the bytes of an
-	 * 						envelope produced by `toBytes()`. Either way they are
-	 * 						added after any `options.elements`. Any other input is
-	 * 						ignored.
+	 * @param data			Items added on creation: an array, heapified as for
+	 * 						`PriorityQueue`, or the bytes of an envelope produced by
+	 * 						`toBytes()`, which rebuild the identical heap. Any other
+	 * 						input is ignored.
 	 * @param options		Optional config, as for `PriorityQueue`.
 	 * @throws				When `comparator` is not a function, when `codec` is
-	 * 						missing either function, when `data` is a byte array
-	 * 						that is not a well formed `ByteEnvelope`, or when
-	 * 						`options.elements` is not an array (as `PriorityQueue` does).
+	 * 						missing either function, or when `data` is a byte array
+	 * 						that is not a well formed `ByteEnvelope`.
 	 */
 	constructor(
 		codec: ItemCodec<ItemT>,
@@ -43,7 +42,7 @@ export class BytePriorityQueue<ItemT> extends PriorityQueue<ItemT> implements By
 		data?: ItemT[] | Uint8Array | null,
 		options?: PriorityQueueOptions<ItemT> | null
 	) {
-		super(comparator, options ?? undefined);
+		super(comparator, Array.isArray(data) ? data : null, options);
 
 		if (!itemCodecValid<ItemT>(codec)) {
 			throw new Error('BytePriorityQueue requires an ItemCodec with encode and decode functions');
@@ -51,13 +50,10 @@ export class BytePriorityQueue<ItemT> extends PriorityQueue<ItemT> implements By
 
 		this.codec = codec;
 
-		const items = Array.isArray(data)
-			? data
-			: data instanceof Uint8Array
-				? byteEnvelopeDecode(data, codec)
-				: null;
+		if (data instanceof Uint8Array) {
+			// Items arrive in heap array order, so each push moves nothing.
+			const items = byteEnvelopeDecode(data, codec);
 
-		if (items !== null) {
 			for (let i = 0; i < items.length; i++) {
 				this.push(items[i]);
 			}

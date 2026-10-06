@@ -172,8 +172,12 @@ export class DirectedGraphSearch<ItemT> {
 }
 
 /** Min-heap order on estimate, then push order. */
-function compareEntries<ItemT>(a: SearchEntry<ItemT>, b: SearchEntry<ItemT>): boolean {
-	return a.estimate < b.estimate || (a.estimate === b.estimate && a.order < b.order);
+function compareEntries<ItemT>(a: SearchEntry<ItemT>, b: SearchEntry<ItemT>): number {
+	if (a.estimate !== b.estimate) {
+		return a.estimate < b.estimate ? -1 : 1;
+	}
+
+	return a.order - b.order;
 }
 
 /**

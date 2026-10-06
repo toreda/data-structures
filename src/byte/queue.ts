@@ -23,9 +23,7 @@ export class ByteQueue<ItemT> extends Queue<ItemT> implements ByteDataStructure<
 	 * @param data		Items pushed front to rear on creation: an array, or the
 	 * 					bytes of an envelope produced by `toBytes()`. Any other
 	 * 					input is ignored.
-	 * @param options	Optional config, as for `Queue`, passed to it untouched.
-	 * 					When `options.elements` is also given, those items are
-	 * 					queued first and `data` follows them.
+	 * @param options	Optional config, as for `Queue`.
 	 * @throws			When `codec` is missing either function, or when `data`
 	 * 					is a byte array that is not a well formed `ByteEnvelope`.
 	 */
@@ -34,7 +32,7 @@ export class ByteQueue<ItemT> extends Queue<ItemT> implements ByteDataStructure<
 		data?: ItemT[] | Uint8Array | null,
 		options?: QueueOptions<ItemT> | null
 	) {
-		super(options);
+		super(Array.isArray(data) ? data : null, options);
 
 		if (!itemCodecValid<ItemT>(codec)) {
 			throw new Error('ByteQueue requires an ItemCodec with encode and decode functions');
@@ -42,13 +40,9 @@ export class ByteQueue<ItemT> extends Queue<ItemT> implements ByteDataStructure<
 
 		this.codec = codec;
 
-		const items = Array.isArray(data)
-			? data
-			: data instanceof Uint8Array
-				? byteEnvelopeDecode(data, codec)
-				: null;
+		if (data instanceof Uint8Array) {
+			const items = byteEnvelopeDecode(data, codec);
 
-		if (items !== null) {
 			for (let i = 0; i < items.length; i++) {
 				this.push(items[i]);
 			}
