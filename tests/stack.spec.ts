@@ -438,7 +438,7 @@ describe('Stack', () => {
 			const done = iter.next();
 			expect(done).toBe(first);
 			expect(done.done).toBe(true);
-			expect(done.value).toBeNull();
+			expect(done.value).toBeUndefined();
 		});
 
 		describe('Iterator for empty stack', () => {
@@ -455,10 +455,10 @@ describe('Stack', () => {
 				expect(res.done).toBe(true);
 			});
 
-			it('should return null for value', () => {
+			it('should return undefined for value', () => {
 				const iter = new StackIterator(instance);
 				const res = iter.next();
-				expect(res.value).toBe(null);
+				expect(res.value).toBeUndefined();
 			});
 		});
 		describe('Iterator on singleton', () => {
@@ -479,7 +479,7 @@ describe('Stack', () => {
 				expect(res.done).toBe(false);
 				res = iter.next();
 				expect(res.done).toBe(true);
-				expect(res.value).toBe(null);
+				expect(res.value).toBeUndefined();
 			});
 		});
 		describe('Iterator on stack', () => {

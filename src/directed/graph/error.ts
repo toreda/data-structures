@@ -1,6 +1,6 @@
 /**
- * Codes returned in place of an edge by DirectedGraph methods that refuse to
- * add it instead of throwing.
+ * Reasons `DirectedGraph.lastError()` gives when `addEdge()` or
+ * `addBidirectionalEdge()` returns null instead of throwing.
  *
  * - `vertex_not_in_graph`: an endpoint is null or not part of this graph.
  * - `edge_exists`: an edge can already be traveled in a direction the new edge

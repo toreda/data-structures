@@ -12,27 +12,27 @@ import type {Iterator} from '../../iterator';
  *
  * @category Object Pool
  */
-export class ObjectPoolIterator<ItemT extends ObjectPoolInstance> implements Iterator<ItemT | null> {
+export class ObjectPoolIterator<ItemT extends ObjectPoolInstance> implements Iterator<ItemT> {
 	private curr: number;
 	private readonly op: ObjectPool<ItemT>;
-	private readonly result: IterableType<ItemT | null>;
+	private readonly result: IterableType<ItemT | undefined>;
 
 	constructor(op: ObjectPool<ItemT>) {
 		this.curr = 0;
 		this.op = op;
-		this.result = {value: null, done: false};
+		this.result = {value: undefined, done: false};
 	}
 
-	public next(): IterableType<ItemT | null> {
+	public next(): IteratorResult<ItemT, undefined> {
 		if (this.curr < this.op.state.usedCount) {
-			this.result.value = this.op.state.used[this.curr];
+			this.result.value = this.op.state.used[this.curr] as ItemT;
 			this.result.done = false;
 			this.curr++;
 		} else {
-			this.result.value = null;
+			this.result.value = undefined;
 			this.result.done = true;
 		}
 
-		return this.result;
+		return this.result as IteratorResult<ItemT, undefined>;
 	}
 }

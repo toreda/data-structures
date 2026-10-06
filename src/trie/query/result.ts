@@ -45,4 +45,3 @@ export class TrieQueryResult<ItemT> implements QueryResult<TrieElement<ItemT>, I
 		return this.trie.removeNode(this.element);
 	}
 }
-

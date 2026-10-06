@@ -205,9 +205,12 @@ describe('OctTree', () => {
 		});
 
 		it('returns invalid_position when the locator gives no finite point', () => {
-			expect(tree.insert({x: 0, y: 0, z: NaN})).toBe('invalid_position');
-			expect(tree.insert({x: 0, y: 0} as any)).toBe('invalid_position');
-			expect(tree.insert(null as any)).toBe('invalid_position');
+			expect(tree.insert({x: 0, y: 0, z: NaN})).toBeNull();
+			expect(tree.lastError()).toBe('invalid_position');
+			expect(tree.insert({x: 0, y: 0} as any)).toBeNull();
+			expect(tree.lastError()).toBe('invalid_position');
+			expect(tree.insert(null as any)).toBeNull();
+			expect(tree.lastError()).toBe('invalid_position');
 			expect(tree.size()).toBe(0);
 		});
 
@@ -219,7 +222,8 @@ describe('OctTree', () => {
 			expect(tree.find({x: 1, y: 1, z: 1})).toBe(first);
 
 			const unique = new OctTree<Pt>(byPoint, [{x: 1, y: 1, z: 1}], {allowDuplicates: false});
-			expect(unique.insert({x: 1, y: 1, z: 1})).toBe('duplicate_not_allowed');
+			expect(unique.insert({x: 1, y: 1, z: 1})).toBeNull();
+			expect(unique.lastError()).toBe('duplicate_not_allowed');
 			expect(unique.insert({x: 1, y: 1, z: 2})).toBeInstanceOf(OctTreeElement);
 		});
 
@@ -294,14 +298,17 @@ describe('OctTree', () => {
 
 		it('update removes the node on an invalid or duplicate position', () => {
 			const node = tree.insert({x: 1, y: 1, z: 1}) as OctTreeElement<Pt>;
-			expect(tree.update(node, {x: 1, y: 1, z: NaN})).toBe('invalid_position');
+			expect(tree.update(node, {x: 1, y: 1, z: NaN})).toBeNull();
+			expect(tree.lastError()).toBe('invalid_position');
 			expect(tree.size()).toBe(0);
 
 			const unique = new OctTree<Pt>(byPoint, [{x: 1, y: 1, z: 1}], {allowDuplicates: false});
 			const other = unique.insert({x: 2, y: 2, z: 2}) as OctTreeElement<Pt>;
-			expect(unique.update(other, {x: 1, y: 1, z: 1})).toBe('duplicate_not_allowed');
+			expect(unique.update(other, {x: 1, y: 1, z: 1})).toBeNull();
+			expect(unique.lastError()).toBe('duplicate_not_allowed');
 			expect(unique.size()).toBe(1);
 			expect(unique.update(null, {x: 1, y: 1, z: 1})).toBeNull();
+			expect(unique.lastError()).toBe('node_not_in_tree');
 		});
 	});
 
@@ -710,9 +717,8 @@ describe('OctTree', () => {
 				const deepest = deepestOf(unique);
 				const size = unique.size();
 
-				expect(unique.insert({x: deepest.x(), y: deepest.y(), z: deepest.z()})).toBe(
-					'duplicate_not_allowed'
-				);
+				expect(unique.insert({x: deepest.x(), y: deepest.y(), z: deepest.z()})).toBeNull();
+				expect(unique.lastError()).toBe('duplicate_not_allowed');
 				expect(unique.size()).toBe(size);
 				expectValid(unique);
 				expectScratchClean(unique);
@@ -729,7 +735,8 @@ describe('OctTree', () => {
 				item.z = deepest.z();
 				const size = unique.size();
 
-				expect(unique.update(mover, item)).toBe('duplicate_not_allowed');
+				expect(unique.update(mover, item)).toBeNull();
+				expect(unique.lastError()).toBe('duplicate_not_allowed');
 				expect(unique.size()).toBe(size - 1);
 				expect(mover._tree).toBeNull();
 				expect(unique.find(item)).toBe(deepest);
@@ -842,7 +849,7 @@ describe('OctTree', () => {
 
 				expect(values).toEqual(tree.preOrder());
 				expect(iterator.next().done).toBe(true);
-				expect(iterator.next().value).toBeNull();
+				expect(iterator.next().value).toBeUndefined();
 			});
 
 			it('ends instead of yielding a removed node with pooling on', () => {

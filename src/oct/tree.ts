@@ -73,6 +73,8 @@ export class OctTree<ItemT> implements Tree<ItemT, OctTreeElement<ItemT>> {
 	private _size: number;
 	/** Last id handed to a linked node. Only increases, so ids never repeat. */
 	private lastLinkId: number;
+	/** Why the last `insert()` or `update()` returned null. Null after a success. */
+	private _lastError: OctTreeError | null;
 	/** Source of node wrappers, pooled or freshly allocated per options. */
 	private readonly elements: ElementPool<OctTreeElement<ItemT>>;
 	/**
@@ -128,6 +130,7 @@ export class OctTree<ItemT> implements Tree<ItemT, OctTreeElement<ItemT>> {
 		this._root = null;
 		this._size = 0;
 		this.lastLinkId = 0;
+		this._lastError = null;
 		// The element class is generic and the pool builds blank nodes with no
 		// value, so any ItemT instantiation is valid here.
 		this.elements = new ElementPool(
@@ -165,23 +168,25 @@ export class OctTree<ItemT> implements Tree<ItemT, OctTreeElement<ItemT>> {
 	/**
 	 * Insert item at the position its locator returns, as a new leaf, in
 	 * O(depth).
-	 * @returns		The node now holding item. `invalid_position` when item is
-	 * 				undefined (throws instead when `allowUndefinedItem` is
-	 * 				`false`; the locator is never called) or when the locator
+	 * @returns		The node now holding item, or null when nothing is added.
+	 * 				`lastError()` then gives the reason: `invalid_position` when
+	 * 				item is undefined (throws instead when `allowUndefinedItem`
+	 * 				is `false`; the locator is never called) or when the locator
 	 * 				does not return finite x, y, and z coordinates, or
 	 * 				`duplicate_not_allowed` when an item already sits at that
-	 * 				exact position and duplicates are not allowed. Nothing is
-	 * 				added in either case.
+	 * 				exact position and duplicates are not allowed.
 	 */
-	public insert(item: ItemT): OctTreeElement<ItemT> | OctTreeError {
+	public insert(item: ItemT): OctTreeElement<ItemT> | null {
+		this._lastError = null;
+
 		if (undefinedItemSkip(item, this.allowUndefinedItem, 'OctTree')) {
-			return 'invalid_position';
+			return this.refuse('invalid_position');
 		}
 
 		const point = this.locator(item);
 
 		if (!this.isPoint(point)) {
-			return 'invalid_position';
+			return this.refuse('invalid_position');
 		}
 
 		const x = point.x;
@@ -190,7 +195,7 @@ export class OctTree<ItemT> implements Tree<ItemT, OctTreeElement<ItemT>> {
 
 		// One descent both checks for a duplicate and finds the new leaf's slot.
 		if (!this.findSlot(x, y, z, !this.allowDuplicates)) {
-			return 'duplicate_not_allowed';
+			return this.refuse('duplicate_not_allowed');
 		}
 
 		// Allocated only once the item is known to be accepted.
@@ -296,26 +301,27 @@ export class OctTree<ItemT> implements Tree<ItemT, OctTreeElement<ItemT>> {
 	 * node is unlinked as in `removeNode()` and relinked at the new position.
 	 * Moving a leaf relinks no other node.
 	 *
-	 * @returns		node, which keeps holding item. `invalid_position` when the
-	 * 				locator does not return finite x, y, and z coordinates for item,
-	 * 				or `duplicate_not_allowed` when another item sits at the new
-	 * 				position and duplicates are not allowed: node is removed in
-	 * 				both cases and item is no longer in the tree. Null when node
-	 * 				is null or not part of this tree; nothing changes then.
+	 * @returns		node, which keeps holding item, or null when it was refused.
+	 * 				`lastError()` then gives the reason: `invalid_position` when
+	 * 				the locator does not return finite x, y, and z coordinates
+	 * 				for item, or `duplicate_not_allowed` when another item sits
+	 * 				at the new position and duplicates are not allowed: node is
+	 * 				removed in both cases and item is no longer in the tree.
+	 * 				`node_not_in_tree` when node is null or not part of this
+	 * 				tree; nothing changes then.
 	 */
-	public update(
-		node: OctTreeElement<ItemT> | null,
-		item: ItemT
-	): OctTreeElement<ItemT> | OctTreeError | null {
+	public update(node: OctTreeElement<ItemT> | null, item: ItemT): OctTreeElement<ItemT> | null {
+		this._lastError = null;
+
 		if (!node || !this.isPartOfTree(node)) {
-			return null;
+			return this.refuse('node_not_in_tree');
 		}
 
 		const point = this.locator(item);
 
 		if (!this.isPoint(point)) {
 			this.removeNode(node);
-			return 'invalid_position';
+			return this.refuse('invalid_position');
 		}
 
 		node._value = item;
@@ -334,7 +340,7 @@ export class OctTree<ItemT> implements Tree<ItemT, OctTreeElement<ItemT>> {
 		if (!this.findSlot(x, y, z, !this.allowDuplicates)) {
 			this._size--;
 			this.dropNode(node);
-			return 'duplicate_not_allowed';
+			return this.refuse('duplicate_not_allowed');
 		}
 
 		node._x = x;
@@ -343,6 +349,23 @@ export class OctTree<ItemT> implements Tree<ItemT, OctTreeElement<ItemT>> {
 		this.attach(node);
 
 		return node;
+	}
+
+	/**
+	 * Why the most recent `insert()` or `update()` returned null.
+	 * `insertArray()` and the constructor call `insert()` once per item, so
+	 * afterwards this describes the last item only.
+	 * @returns		The error code, or null when that call succeeded or none has
+	 * 				been made yet.
+	 */
+	public lastError(): OctTreeError | null {
+		return this._lastError;
+	}
+
+	/** Record why a call is refused, and return the null it returns. */
+	private refuse(code: OctTreeError): null {
+		this._lastError = code;
+		return null;
 	}
 
 	/**

@@ -112,7 +112,8 @@ describe('SpatialHash', () => {
 		])('refuses %s with invalid_position', (_label, point) => {
 			const target = new SpatialHash<any>(() => point as any);
 
-			expect(target.insert({})).toBe('invalid_position');
+			expect(target.insert({})).toBeNull();
+			expect(target.lastError()).toBe('invalid_position');
 			expect(target.size()).toBe(0);
 		});
 
@@ -123,8 +124,10 @@ describe('SpatialHash', () => {
 
 			expect(target.insert(low)).toBeInstanceOf(SpatialElement);
 			expect(target.insert(high)).toBeInstanceOf(SpatialElement);
-			expect(target.insert({x: -2147483649, y: 0, z: 0})).toBe('invalid_position');
-			expect(target.insert({x: 2147483648, y: 0, z: 0})).toBe('invalid_position');
+			expect(target.insert({x: -2147483649, y: 0, z: 0})).toBeNull();
+			expect(target.lastError()).toBe('invalid_position');
+			expect(target.insert({x: 2147483648, y: 0, z: 0})).toBeNull();
+			expect(target.lastError()).toBe('invalid_position');
 			expect(target.nearest({x: 2147483647, y: 0, z: 0})!.value()).toBe(high);
 			expect(target.nearest({x: 1e12, y: 0, z: 0})!.value()).toBe(high);
 			expectValid(target);
@@ -255,7 +258,8 @@ describe('SpatialHash', () => {
 		it('removes the element when the new position is invalid', () => {
 			const node = hash.insert({x: 1, y: 1, z: 1}) as SpatialElement<Pt>;
 
-			expect(hash.update(node, {x: NaN, y: 0, z: 0})).toBe('invalid_position');
+			expect(hash.update(node, {x: NaN, y: 0, z: 0})).toBeNull();
+			expect(hash.lastError()).toBe('invalid_position');
 			expect(hash.size()).toBe(0);
 			expectValid(hash);
 		});
@@ -265,6 +269,7 @@ describe('SpatialHash', () => {
 			const node = other.insert({x: 1, y: 1, z: 1}) as SpatialElement<Pt>;
 
 			expect(hash.update(null, {x: 0, y: 0, z: 0})).toBeNull();
+			expect(hash.lastError()).toBe('node_not_in_hash');
 			expect(hash.update(node, {x: 0, y: 0, z: 0})).toBeNull();
 			expect(node.x()).toBe(1);
 		});

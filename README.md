@@ -517,6 +517,16 @@ Node-based collections (`LinkedList`, `BinarySearchTree`, `RedBlackTree`, `QuadT
 
 Methods return `null` instead of throwing when a collection is empty or holds no matching item, for example `pop()` on an empty `Stack`.
 
+Methods that can refuse an item (`insert()` and `update()` on the trees, grids, and `Trie`, and `addEdge()` / `addBidirectionalEdge()` on `DirectedGraph`) return the new node or `null`. When one returns `null`, `lastError()` gives the reason as a string code, and a successful call resets it to `null`. A returned node never needs a type check before use:
+
+```typescript
+tree.insert(5)?.value(); // returns 5
+
+if (unique.insert(3) === null) {
+	unique.lastError(); // returns 'duplicate_not_allowed'
+}
+```
+
 # Data Structures
 
 ## **`BinarySearchTree<T>`**
@@ -531,7 +541,7 @@ Typescript
 
 ```typescript
 // Import
-import {BinarySearchTree, BinarySearchTreeComparator} from '@toreda/data-structures';
+import {BinarySearchTree, type BinarySearchTreeComparator} from '@toreda/data-structures';
 
 // Instantiate. The comparator is required and throws when it is not a function.
 const byNumber: BinarySearchTreeComparator<number> = (a, b) => a - b;
@@ -691,24 +701,26 @@ tree.find({k: 1})?.value() === first; // true
 tree.remove({k: 1}) === first; // true
 ```
 
-Set `allowDuplicates: false` to keep items unique. A duplicate is not added, and instead of throwing, the method returns the `duplicate_not_allowed` error code (type `BinarySearchTreeError`). Only a strict boolean is accepted; any other value keeps the default of `true`.
+Set `allowDuplicates: false` to keep items unique. A duplicate is not added, and instead of throwing, the method returns `null` and `lastError()` returns the `duplicate_not_allowed` code (type `BinarySearchTreeError`). Only a strict boolean is accepted; any other value keeps the default of `true`.
 
 ```typescript
-import {BinarySearchTree, BinarySearchTreeError} from '@toreda/data-structures';
+import {BinarySearchTree, type BinarySearchTreeError} from '@toreda/data-structures';
 
 const unique = new BinarySearchTree<number>((a, b) => a - b, [5, 3, 5, 8], {allowDuplicates: false});
 unique.values(); // returns [3, 5, 8]. Duplicates in constructor data and insertArray are skipped.
 
-const result = unique.insert(3); // returns 'duplicate_not_allowed'
-if (result === 'duplicate_not_allowed') {
+const node = unique.insert(3); // returns null
+if (node === null) {
+	const reason: BinarySearchTreeError | null = unique.lastError(); // 'duplicate_not_allowed'
 	// 3 is already in the tree and nothing was added
 }
 
-unique.insert(4); // returns the node holding 4
+unique.insert(4)?.value(); // returns 4
 
-// update() also returns the code when the new item equals another item.
+// update() also returns null when the new item equals another item.
 // The node is removed in that case, so the item is no longer in the tree.
-unique.update(unique.find(4), 8); // returns 'duplicate_not_allowed'
+unique.update(unique.find(4), 8); // returns null
+unique.lastError(); // returns 'duplicate_not_allowed'
 unique.values(); // returns [3, 5, 8]
 ```
 
@@ -973,11 +985,13 @@ graph.forEachNeighbor(home, logNeighbor); // outputs 'park costs 2', then 'shop 
 ### Edge errors
 
 ```typescript
-// Edges that cannot be added return an error code (type DirectedGraphError) instead of throwing
-graph.addEdge(home, shop); // returns 'edge_exists'
-graph.addEdge(home, park); // returns 'edge_exists' (home -> park is already covered)
-graph.addEdge(home, null); // returns 'vertex_not_in_graph'
-graph.addEdge(shop, home, -1); // returns 'invalid_weight' (weights must be finite and 0 or more)
+// Edges that cannot be added return null instead of throwing,
+// and lastError() gives the reason (type DirectedGraphError)
+graph.addEdge(home, shop); // returns null
+graph.lastError(); // returns 'edge_exists'
+graph.addEdge(home, park); // returns null, lastError() 'edge_exists' (home -> park is already covered)
+graph.addEdge(home, null); // returns null, lastError() 'vertex_not_in_graph'
+graph.addEdge(shop, home, -1); // returns null, lastError() 'invalid_weight' (weights must be finite and 0 or more)
 ```
 
 ### Traversal and removal
@@ -1001,7 +1015,7 @@ The search takes O(E log V) when the heuristic is also consistent: for every edg
 
 ```typescript
 // Using the home / park / shop / work graph as first built above
-import {DirectedGraphPath} from '@toreda/data-structures';
+import type {DirectedGraphPath} from '@toreda/data-structures';
 
 const path = graph.findPath(home, work);
 path?.vertices; // returns [home, park, work]
@@ -1247,7 +1261,7 @@ Typescript
 
 ```typescript
 // Import
-import {ObjectPool, ObjectPoolInstance} from '@toreda/data-structures';
+import {ObjectPool, type ObjectPoolInstance} from '@toreda/data-structures';
 
 // Pooled classes implement cleanObj(), which resets the object for reuse
 class ObjectClass implements ObjectPoolInstance {
@@ -1362,7 +1376,7 @@ Children are indexed by octant, a bitmask: bit `1` set means x smaller than the 
 Typescript
 
 ```typescript
-import {OctTree, OctTreeLocator} from '@toreda/data-structures';
+import {OctTree, type OctTreeLocator} from '@toreda/data-structures';
 
 interface Star {
 	name: string;
@@ -1402,7 +1416,7 @@ Typescript
 
 ```typescript
 // Import
-import {PriorityQueue, PriorityQueueComparator} from '@toreda/data-structures';
+import {PriorityQueue, type PriorityQueueComparator} from '@toreda/data-structures';
 
 // Instantiate. The comparator is required and throws when it is not a function.
 const minFirst: PriorityQueueComparator<number> = (a, b) => a < b;
@@ -1493,7 +1507,7 @@ Children are indexed by quadrant: `0` north-east, `1` north-west, `2` south-east
 Typescript
 
 ```typescript
-import {QuadTree, QuadTreeElement, QuadTreeLocator} from '@toreda/data-structures';
+import {QuadTree, QuadTreeElement, type QuadTreeLocator} from '@toreda/data-structures';
 
 interface Place {
 	name: string;
@@ -1513,7 +1527,8 @@ tree.insert({name: 'shop', x: -2, y: 1}); // home's north-west quadrant
 tree.insert({name: 'work', x: 10, y: -6}); // home's south-east quadrant
 
 // Items without finite coordinates are refused instead of throwing
-tree.insert({name: 'lost', x: NaN, y: 0}); // returns 'invalid_position'
+tree.insert({name: 'lost', x: NaN, y: 0}); // returns null
+tree.lastError(); // returns 'invalid_position'
 
 // Exact position lookup
 tree.find({x: 3, y: 4})?.value()?.name; // returns 'park'
@@ -1587,7 +1602,7 @@ const fromBytes = new ByteQuadTree<Place>(placeCodec, byPosition, source.toBytes
 fromBytes.size(); // returns 3
 ```
 
-Node pooling, `filter`, `query`, `forEach`, `preOrder`, `postOrder`, `levelOrder`, and the `allowDuplicates` option work as in [`BinarySearchTree`](#binarysearchtreet). A quadtree has no sorted order, so there is no `inOrder()`, `min()`, or `max()`, and walks run in pre-order. Duplicates are items at exactly the same position. With `allowDuplicates: false`, inserting at an occupied position returns `'duplicate_not_allowed'` and adds nothing.
+Node pooling, `filter`, `query`, `forEach`, `preOrder`, `postOrder`, `levelOrder`, and the `allowDuplicates` option work as in [`BinarySearchTree`](#binarysearchtreet). A quadtree has no sorted order, so there is no `inOrder()`, `min()`, or `max()`, and walks run in pre-order. Duplicates are items at exactly the same position. With `allowDuplicates: false`, inserting at an occupied position returns `null`, sets `lastError()` to `'duplicate_not_allowed'`, and adds nothing.
 
 ## `Queue<T>`
 
@@ -1694,7 +1709,7 @@ Self-balancing binary search tree ordered by a comparator you provide. Insert an
 Typescript
 
 ```typescript
-import {RedBlackTree, RedBlackTreeComparator} from '@toreda/data-structures';
+import {RedBlackTree, type RedBlackTreeComparator} from '@toreda/data-structures';
 
 // Instantiate. The comparator is required and throws when it is not a function.
 const byNumber: RedBlackTreeComparator<number> = (a, b) => a - b;
@@ -1744,7 +1759,7 @@ Iteration, `values()`, `toArray()`, `query()`, and `stringify()` follow insertio
 ### Spatial hash basics
 
 ```typescript
-import {SpatialHash, SpatialLocator} from '@toreda/data-structures';
+import {SpatialHash, type SpatialLocator} from '@toreda/data-structures';
 
 interface Ship {
 	name: string;
@@ -1771,7 +1786,7 @@ ships.nearest({x: 700, y: 0, z: 0})?.value()?.name; // returns 'raider'
 ships.find({x: 10, y: 0, z: 0})?.value()?.name; // returns 'scout' (exact position)
 ```
 
-`insert()` returns the element holding the item, or the `invalid_position` error code when the locator doesn't return finite coordinates. `withinBounds()` and `withinRadius()` take an optional array to refill. `forEachWithinBounds()` and `forEachWithinRadius()` visit matches without allocating, and are safe to call when the callback inserts, removes, or moves items:
+`insert()` returns the element holding the item, or `null` with `lastError()` set to `invalid_position` when the locator doesn't return finite coordinates. `withinBounds()` and `withinRadius()` take an optional array to refill. `forEachWithinBounds()` and `forEachWithinRadius()` visit matches without allocating, and are safe to call when the callback inserts, removes, or moves items:
 
 ```typescript
 ships.forEachWithinRadius({x: 0, y: 0, z: 0}, 100, (element, index, hash) => {
@@ -1814,7 +1829,7 @@ Everything else matches [`SpatialHash`](#spatialhasht): the locator, `cellSize`,
 ### Spatial map basics
 
 ```typescript
-import {SpatialMap, SpatialLocator} from '@toreda/data-structures';
+import {SpatialMap, type SpatialLocator} from '@toreda/data-structures';
 
 interface Block {
 	type: string;
@@ -1827,7 +1842,7 @@ const byPosition: SpatialLocator<Block> = (block) => block;
 const blocks = new SpatialMap<Block>(byPosition);
 
 blocks.insert({type: 'stone', x: 0, y: 0, z: 0}); // returns the element
-blocks.insert({type: 'dirt', x: 0.5, y: 0.2, z: 0.9}); // returns 'cell_occupied'
+blocks.insert({type: 'dirt', x: 0.5, y: 0.2, z: 0.9}); // returns null, lastError() 'cell_occupied'
 blocks.insert({type: 'dirt', x: 1, y: 0, z: 0}); // returns the element
 
 blocks.findCell(1, 0, 0)?.value()?.type; // returns 'dirt'
@@ -1851,7 +1866,7 @@ Occupancy is decided by cell, not exact position: two items at different positio
 ```typescript
 const stone = blocks.findCell(0, 0, 0)!;
 
-blocks.update(stone, {...stone.value()!, x: 1.5}); // returns 'cell_occupied', nothing moves
+blocks.update(stone, {...stone.value()!, x: 1.5}); // returns null, lastError() 'cell_occupied', nothing moves
 blocks.update(stone, {...stone.value()!, y: 1}); // returns stone, now in cell 0, 1, 0
 ```
 
@@ -1992,7 +2007,9 @@ words.remove('cart'); // returns 'cart'
 words.remove('dog'); // returns null
 
 // Items without a string key are refused instead of throwing
-new Trie<any>((item) => item).insert(42); // returns 'invalid_key'
+const anyKeys = new Trie<any>((item) => item);
+anyKeys.insert(42); // returns null
+anyKeys.lastError(); // returns 'invalid_key'
 ```
 
 ### Prefix search and autocomplete
@@ -2087,7 +2104,7 @@ Every collection supports `query()`. A query takes one filter, or an array of fi
 Typescript
 
 ```typescript
-import {QueryFilter, QueryOptions, QueryResult} from '@toreda/data-structures';
+import type {QueryFilter, QueryOptions, QueryResult} from '@toreda/data-structures';
 import {BinarySearchTree, CircularQueue, LinkedList, PriorityQueue, Queue, Stack} from '@toreda/data-structures';
 
 const myQueue = new Queue<number>();

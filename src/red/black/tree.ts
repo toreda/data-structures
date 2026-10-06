@@ -63,6 +63,8 @@ export class RedBlackTree<ItemT> implements Tree<ItemT, RedBlackTreeElement<Item
 	private _size: number;
 	/** Last id handed to a linked node. Only increases, so ids never repeat. */
 	private lastLinkId: number;
+	/** Why the last `insert()` or `update()` returned null. Null after a success. */
+	private _lastError: RedBlackTreeError | null;
 	/** Source of node wrappers, pooled or freshly allocated per options. */
 	private readonly elements: ElementPool<RedBlackTreeElement<ItemT>>;
 	/** Parent of the spot found by the last `findSlot()`, null for the root. */
@@ -95,6 +97,7 @@ export class RedBlackTree<ItemT> implements Tree<ItemT, RedBlackTreeElement<Item
 		this._root = null;
 		this._size = 0;
 		this.lastLinkId = 0;
+		this._lastError = null;
 		this.slotParent = null;
 		this.slotLeft = false;
 		// The element class is generic and the pool builds blank nodes with no
@@ -121,19 +124,22 @@ export class RedBlackTree<ItemT> implements Tree<ItemT, RedBlackTreeElement<Item
 	/**
 	 * Insert item at its sorted position, after any items comparing equal,
 	 * then rebalance in O(log n).
-	 * @returns		The node now holding item, or an error code when nothing is
-	 * 				added: `undefined_item` when item is undefined (throws
-	 * 				instead when `allowUndefinedItem` is `false`), or
-	 * 				`duplicate_not_allowed` when item compares equal to one
-	 * 				already in the tree and duplicates are not allowed.
+	 * @returns		The node now holding item, or null when nothing is added.
+	 * 				`lastError()` then gives the reason: `undefined_item` when
+	 * 				item is undefined (throws instead when `allowUndefinedItem`
+	 * 				is `false`), or `duplicate_not_allowed` when item compares
+	 * 				equal to one already in the tree and duplicates are not
+	 * 				allowed.
 	 */
-	public insert(item: ItemT): RedBlackTreeElement<ItemT> | RedBlackTreeError {
+	public insert(item: ItemT): RedBlackTreeElement<ItemT> | null {
+		this._lastError = null;
+
 		if (undefinedItemSkip(item, this.allowUndefinedItem, 'RedBlackTree')) {
-			return 'undefined_item';
+			return this.refuse('undefined_item');
 		}
 
 		if (!this.findSlot(item)) {
-			return 'duplicate_not_allowed';
+			return this.refuse('duplicate_not_allowed');
 		}
 
 		// Allocated only once the item is known to be accepted.
@@ -230,18 +236,18 @@ export class RedBlackTree<ItemT> implements Tree<ItemT, RedBlackTreeElement<Item
 	 * allocate nothing: the node is never released or reallocated, so it stays
 	 * valid, and query results that matched it can still `delete()` it.
 	 *
-	 * @returns		node, now holding item. `duplicate_not_allowed` when item now
-	 * 				compares equal to another item and duplicates are not
-	 * 				allowed: node is removed and item is no longer in the tree.
-	 * 				Null when node is null or not part of this tree; nothing
-	 * 				changes then.
+	 * @returns		node, now holding item, or null when it was refused.
+	 * 				`lastError()` then gives the reason: `duplicate_not_allowed`
+	 * 				when item now compares equal to another item and duplicates
+	 * 				are not allowed: node is removed and item is no longer in the
+	 * 				tree. `node_not_in_tree` when node is null or not part of
+	 * 				this tree; nothing changes then.
 	 */
-	public update(
-		node: RedBlackTreeElement<ItemT> | null,
-		item: ItemT
-	): RedBlackTreeElement<ItemT> | RedBlackTreeError | null {
+	public update(node: RedBlackTreeElement<ItemT> | null, item: ItemT): RedBlackTreeElement<ItemT> | null {
+		this._lastError = null;
+
 		if (!node || !this.isPartOfTree(node)) {
-			return null;
+			return this.refuse('node_not_in_tree');
 		}
 
 		node._value = item;
@@ -261,7 +267,7 @@ export class RedBlackTree<ItemT> implements Tree<ItemT, RedBlackTreeElement<Item
 			if (!this.findSlot(item)) {
 				this._size--;
 				this.discard(node);
-				return 'duplicate_not_allowed';
+				return this.refuse('duplicate_not_allowed');
 			}
 
 			this.linkAtSlot(node);
@@ -270,10 +276,27 @@ export class RedBlackTree<ItemT> implements Tree<ItemT, RedBlackTreeElement<Item
 
 		if (!this.allowDuplicates && (prevOrder === 0 || nextOrder === 0)) {
 			this.removeNode(node);
-			return 'duplicate_not_allowed';
+			return this.refuse('duplicate_not_allowed');
 		}
 
 		return node;
+	}
+
+	/**
+	 * Why the most recent `insert()` or `update()` returned null.
+	 * `insertArray()` and the constructor call `insert()` once per item, so
+	 * afterwards this describes the last item only.
+	 * @returns		The error code, or null when that call succeeded or none has
+	 * 				been made yet.
+	 */
+	public lastError(): RedBlackTreeError | null {
+		return this._lastError;
+	}
+
+	/** Record why a call is refused, and return the null it returns. */
+	private refuse(code: RedBlackTreeError): null {
+		this._lastError = code;
+		return null;
 	}
 
 	/**

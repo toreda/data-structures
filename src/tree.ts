@@ -11,7 +11,10 @@ import {type TreeElement} from './tree/element';
  *
  * @category Tree
  */
-export interface Tree<ItemT, ElementT extends TreeElement<ItemT> = TreeElement<ItemT>> extends DataStructure<ItemT> {
+export interface Tree<
+	ItemT,
+	ElementT extends TreeElement<ItemT> = TreeElement<ItemT>
+> extends DataStructure<ItemT> {
 	/** Topmost node, or null when the tree is empty. */
 	root(): ElementT | null;
 	/** Number of items in the tree. */

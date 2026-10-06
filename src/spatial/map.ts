@@ -68,6 +68,8 @@ export class SpatialMap<ItemT> implements DataStructure<ItemT> {
 	public readonly allowUndefinedItem: boolean;
 	/** Cell table, element links, and search walks. */
 	private readonly grid: SpatialGrid<ItemT>;
+	/** Why the last `insert()` or `update()` returned null. Null after a success. */
+	private _lastError: SpatialMapError | null;
 
 	/**
 	 * @param locator	Reads an item's position. Required, since items are
@@ -89,6 +91,7 @@ export class SpatialMap<ItemT> implements DataStructure<ItemT> {
 		this.cellSize = this.grid.cellSize;
 		this.overwrite = booleanValue(false, options?.overwrite);
 		this.allowUndefinedItem = booleanValue(true, options?.allowUndefinedItem);
+		this._lastError = null;
 
 		if (Array.isArray(data)) {
 			this.insertArray(data);
@@ -107,27 +110,30 @@ export class SpatialMap<ItemT> implements DataStructure<ItemT> {
 	 * Insert item into the cell holding the position its locator returns, in
 	 * O(1) on average. With `overwrite`, an item already in that cell is
 	 * removed first.
-	 * @returns		The element now holding item. `invalid_position` when item
-	 * 				is undefined (throws instead when `allowUndefinedItem` is
-	 * 				`false`; the locator is never called) or when the locator
+	 * @returns		The element now holding item, or null when nothing changes.
+	 * 				`lastError()` then gives the reason: `invalid_position` when
+	 * 				item is undefined (throws instead when `allowUndefinedItem`
+	 * 				is `false`; the locator is never called) or when the locator
 	 * 				does not return finite x, y, and z coordinates in range, or
 	 * 				`cell_occupied` when another item holds the cell and
-	 * 				`overwrite` is off. Nothing changes in either case.
+	 * 				`overwrite` is off.
 	 */
-	public insert(item: ItemT): SpatialElement<ItemT> | SpatialMapError {
+	public insert(item: ItemT): SpatialElement<ItemT> | null {
+		this._lastError = null;
+
 		if (undefinedItemSkip(item, this.allowUndefinedItem, 'SpatialMap')) {
-			return 'invalid_position';
+			return this.refuse('invalid_position');
 		}
 
 		if (!this.grid.locate(item)) {
-			return 'invalid_position';
+			return this.refuse('invalid_position');
 		}
 
 		const occupant = this.grid.locatedHead();
 
 		if (occupant) {
 			if (!this.overwrite) {
-				return 'cell_occupied';
+				return this.refuse('cell_occupied');
 			}
 
 			this.grid.remove(occupant);
@@ -245,25 +251,25 @@ export class SpatialMap<ItemT> implements DataStructure<ItemT> {
 	 * either restore its position or remove it with `removeNode()`, since
 	 * `remove()` searches by the locator's position.
 	 *
-	 * @returns		node, which now holds item. `invalid_position` when the
-	 * 				locator does not return finite x, y, and z coordinates in
+	 * @returns		node, which now holds item, or null when it was refused.
+	 * 				`lastError()` then gives the reason: `invalid_position` when
+	 * 				the locator does not return finite x, y, and z coordinates in
 	 * 				range for item: node is removed then and item is no longer
 	 * 				in the map. `cell_occupied` when another item holds the
-	 * 				target cell and `overwrite` is off: nothing changes. Null
-	 * 				when node is null or not part of this map; nothing changes
-	 * 				then.
+	 * 				target cell and `overwrite` is off: nothing changes.
+	 * 				`node_not_in_map` when node is null or not part of this map;
+	 * 				nothing changes then.
 	 */
-	public update(
-		node: SpatialElement<ItemT> | null,
-		item: ItemT
-	): SpatialElement<ItemT> | SpatialMapError | null {
+	public update(node: SpatialElement<ItemT> | null, item: ItemT): SpatialElement<ItemT> | null {
+		this._lastError = null;
+
 		if (!node || !this.grid.owns(node)) {
-			return null;
+			return this.refuse('node_not_in_map');
 		}
 
 		if (!this.grid.locate(item)) {
 			this.grid.remove(node);
-			return 'invalid_position';
+			return this.refuse('invalid_position');
 		}
 
 		if (!this.grid.locatedInCellOf(node)) {
@@ -271,7 +277,7 @@ export class SpatialMap<ItemT> implements DataStructure<ItemT> {
 
 			if (occupant) {
 				if (!this.overwrite) {
-					return 'cell_occupied';
+					return this.refuse('cell_occupied');
 				}
 
 				this.grid.remove(occupant);
@@ -282,6 +288,23 @@ export class SpatialMap<ItemT> implements DataStructure<ItemT> {
 		this.grid.moveLocated(node);
 
 		return node;
+	}
+
+	/**
+	 * Why the most recent `insert()` or `update()` returned null.
+	 * `insertArray()` and the constructor call `insert()` once per item, so
+	 * afterwards this describes the last item only.
+	 * @returns		The error code, or null when that call succeeded or none has
+	 * 				been made yet.
+	 */
+	public lastError(): SpatialMapError | null {
+		return this._lastError;
+	}
+
+	/** Record why a call is refused, and return the null it returns. */
+	private refuse(code: SpatialMapError): null {
+		this._lastError = code;
+		return null;
 	}
 
 	/**

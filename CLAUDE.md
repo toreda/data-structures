@@ -79,8 +79,11 @@ Byte encoding is not part of the base `DataStructure` contract. Each data struct
 
 ### Collection Allocations
 * Collections that create a wrapper object for each stored item must use an internal `ObjectPool` to allocate wrapper instances.
+  * Must support ctor option that enables pooling by default, but can be disabled per instance.
 
 ### Class Members
 * Call `.bind()` once per member function at most.
 * Place all `.bind()` calls in a `private bindHandlers()` method called at the end of the ctor.
   * No `bindHandlers()` method is required for classes with no `.bind()` calls.  
+  * `this.bindHandlers()` must be called in `ctor` only once.
+  * `this.bindHandlers()` must never be called outside `ctor`.

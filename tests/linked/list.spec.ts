@@ -663,7 +663,7 @@ describe('LinkedList', () => {
 				});
 			});
 
-			it('should return null for value', () => {
+			it('should return undefined for value', () => {
 				const iter = new LinkedListIterator(list);
 				expect(() => {
 					const res = iter.next();
@@ -682,7 +682,7 @@ describe('LinkedList', () => {
 				}).not.toThrow();
 			});
 
-			it('should return null for value', () => {
+			it('should return undefined for value', () => {
 				list.insert('string');
 				const iter = new LinkedListIterator(list);
 				expect(() => {
@@ -736,7 +736,7 @@ describe('LinkedList', () => {
 				expect(it.next()).toBe(first);
 				expect(first).toEqual({value: 2, done: false});
 				expect(it.next()).toBe(first);
-				expect(first).toEqual({value: null, done: true});
+				expect(first).toEqual({value: undefined, done: true});
 				expect([...target]).toEqual([1, 2]);
 			});
 		});

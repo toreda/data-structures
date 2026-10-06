@@ -446,7 +446,8 @@ describe('DirectedGraph', () => {
 			expect(graph.addBidirectionalEdge(b, b)).toBeInstanceOf(DirectedGraphEdge);
 			expect(graph.neighbors(a)).toEqual([a]);
 			expect(graph.neighbors(b)).toEqual([b]);
-			expect(graph.addEdge(b, b)).toBe('edge_exists');
+			expect(graph.addEdge(b, b)).toBeNull();
+			expect(graph.lastError()).toBe('edge_exists');
 			expectValid(graph);
 		});
 
@@ -455,24 +456,37 @@ describe('DirectedGraph', () => {
 			graph.addEdge(a, b);
 			graph.addBidirectionalEdge(b, c);
 
-			expect(graph.addEdge(a, b)).toBe('edge_exists');
-			expect(graph.addBidirectionalEdge(a, b)).toBe('edge_exists');
-			expect(graph.addBidirectionalEdge(b, a)).toBe('edge_exists');
-			expect(graph.addEdge(b, c)).toBe('edge_exists');
-			expect(graph.addEdge(c, b)).toBe('edge_exists');
-			expect(graph.addBidirectionalEdge(c, b)).toBe('edge_exists');
+			expect(graph.addEdge(a, b)).toBeNull();
+			expect(graph.lastError()).toBe('edge_exists');
+			expect(graph.addBidirectionalEdge(a, b)).toBeNull();
+			expect(graph.lastError()).toBe('edge_exists');
+			expect(graph.addBidirectionalEdge(b, a)).toBeNull();
+			expect(graph.lastError()).toBe('edge_exists');
+			expect(graph.addEdge(b, c)).toBeNull();
+			expect(graph.lastError()).toBe('edge_exists');
+			expect(graph.addEdge(c, b)).toBeNull();
+			expect(graph.lastError()).toBe('edge_exists');
+			expect(graph.addBidirectionalEdge(c, b)).toBeNull();
+			expect(graph.lastError()).toBe('edge_exists');
 			expect(graph.edgeCount()).toBe(2);
+			expect(graph.addEdge(c, a)).toBeInstanceOf(DirectedGraphEdge);
+			expect(graph.lastError()).toBeNull();
 		});
 
 		it('refuses edges to vertices outside the graph', () => {
 			const a = graph.addVertex('a');
 			const foreign = new DirectedGraph<string>(['x']).vertices()[0];
 
-			expect(graph.addEdge(a, null)).toBe('vertex_not_in_graph');
-			expect(graph.addEdge(null, a)).toBe('vertex_not_in_graph');
-			expect(graph.addEdge(a, foreign)).toBe('vertex_not_in_graph');
-			expect(graph.addBidirectionalEdge(foreign, a)).toBe('vertex_not_in_graph');
-			expect(graph.addEdge(a, new DirectedGraphVertex('b'))).toBe('vertex_not_in_graph');
+			expect(graph.addEdge(a, null)).toBeNull();
+			expect(graph.lastError()).toBe('vertex_not_in_graph');
+			expect(graph.addEdge(null, a)).toBeNull();
+			expect(graph.lastError()).toBe('vertex_not_in_graph');
+			expect(graph.addEdge(a, foreign)).toBeNull();
+			expect(graph.lastError()).toBe('vertex_not_in_graph');
+			expect(graph.addBidirectionalEdge(foreign, a)).toBeNull();
+			expect(graph.lastError()).toBe('vertex_not_in_graph');
+			expect(graph.addEdge(a, new DirectedGraphVertex('b'))).toBeNull();
+			expect(graph.lastError()).toBe('vertex_not_in_graph');
 			expect(graph.edgeCount()).toBe(0);
 		});
 
@@ -481,8 +495,10 @@ describe('DirectedGraph', () => {
 			const allocatedBefore = edgePoolOf(graph)!.size();
 
 			for (const invalid of [-1, NaN, Infinity, -Infinity, null, '1', {}]) {
-				expect(graph.addEdge(a, b, invalid as any)).toBe('invalid_weight');
-				expect(graph.addBidirectionalEdge(a, b, invalid as any)).toBe('invalid_weight');
+				expect(graph.addEdge(a, b, invalid as any)).toBeNull();
+				expect(graph.lastError()).toBe('invalid_weight');
+				expect(graph.addBidirectionalEdge(a, b, invalid as any)).toBeNull();
+				expect(graph.lastError()).toBe('invalid_weight');
 			}
 
 			expect(graph.edgeCount()).toBe(0);
@@ -1316,7 +1332,7 @@ describe('DirectedGraph', () => {
 				expect(first).toEqual({value: 'a', done: false});
 				expect(iterator.next()).toBe(first);
 				expect(first).toEqual({value: 'b', done: false});
-				expect(iterator.next()).toEqual({value: null, done: true});
+				expect(iterator.next()).toEqual({value: undefined, done: true});
 			});
 		});
 

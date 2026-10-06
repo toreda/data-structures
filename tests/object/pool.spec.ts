@@ -382,9 +382,9 @@ describe('ObjectPool', () => {
 				expect(iter.next().done).toBe(true);
 			});
 
-			it('should return null for value', () => {
+			it('should return undefined for value', () => {
 				const iter = new ObjectPoolIterator(instance);
-				expect(iter.next().value).toBe(null);
+				expect(iter.next().value).toBeUndefined();
 			});
 		});
 		describe('Iterator on singleton instance', () => {
@@ -412,11 +412,11 @@ describe('ObjectPool', () => {
 				expect(iter.next().done).toBe(true);
 			});
 
-			it('should return null for value', () => {
+			it('should return undefined for value', () => {
 				instance.allocate();
 				const iter = new ObjectPoolIterator(instance);
 				iter.next();
-				expect(iter.next().value).toBe(null);
+				expect(iter.next().value).toBeUndefined();
 			});
 		});
 		describe('Iterator on objectinstance', () => {
@@ -700,7 +700,7 @@ describe('ObjectPool', () => {
 				expect(second).toBe(first);
 				expect(end).toBe(first);
 				expect(end.done).toBe(true);
-				expect(end.value).toBeNull();
+				expect(end.value).toBeUndefined();
 			});
 		});
 

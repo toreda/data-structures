@@ -62,6 +62,8 @@ export class Trie<ItemT> implements DataStructure<ItemT> {
 	private _size: number;
 	/** Last id handed to a stored item. Only increases, so ids never repeat. */
 	private lastLinkId: number;
+	/** Why the last `insert()` or `update()` returned null. Null after a success. */
+	private _lastError: TrieError | null;
 	/** Source of node wrappers, pooled or freshly allocated per options. */
 	private readonly elements: ElementPool<TrieElement<ItemT>>;
 	/** Whether an undefined item is skipped as a no-op or throws. */
@@ -90,6 +92,7 @@ export class Trie<ItemT> implements DataStructure<ItemT> {
 		this.allowUndefinedItem = booleanValue(true, options?.allowUndefinedItem);
 		this._size = 0;
 		this.lastLinkId = 0;
+		this._lastError = null;
 		// The element class is generic and the pool builds blank nodes with no
 		// value, so any ItemT instantiation is valid here.
 		this.elements = new ElementPool(TrieElement as ObjectPoolConstructor<TrieElement<ItemT>>, options);
@@ -115,20 +118,23 @@ export class Trie<ItemT> implements DataStructure<ItemT> {
 	 * are created only for the part of the key not already in the trie.
 	 * @returns		The node now holding item. When the key was already stored,
 	 * 				this is the same node, and the item it held is replaced.
-	 * 				`undefined_item` when item is undefined (throws instead when
-	 * 				`allowUndefinedItem` is `false`; the key selector is never
-	 * 				called). `invalid_key` when the key selector does not return
-	 * 				a string. Nothing is added in either case.
+	 * 				Null when nothing is added, and `lastError()` then gives the
+	 * 				reason: `undefined_item` when item is undefined (throws
+	 * 				instead when `allowUndefinedItem` is `false`; the key
+	 * 				selector is never called), or `invalid_key` when the key
+	 * 				selector does not return a string.
 	 */
-	public insert(item: ItemT): TrieElement<ItemT> | TrieError {
+	public insert(item: ItemT): TrieElement<ItemT> | null {
+		this._lastError = null;
+
 		if (undefinedItemSkip(item, this.allowUndefinedItem, 'Trie')) {
-			return 'undefined_item';
+			return this.refuse('undefined_item');
 		}
 
 		const key = this.keySelector(item);
 
 		if (typeof key !== 'string') {
-			return 'invalid_key';
+			return this.refuse('invalid_key');
 		}
 
 		return this.store(item, key);
@@ -263,28 +269,31 @@ export class Trie<ItemT> implements DataStructure<ItemT> {
 	 * query results that matched node no longer delete.
 	 *
 	 * @returns		The node now holding item: node itself when the key is
-	 * 				unchanged. `undefined_item` when item is undefined (throws
-	 * 				instead when `allowUndefinedItem` is `false`; the key
+	 * 				unchanged. Null when it was refused, and `lastError()` then
+	 * 				gives the reason: `undefined_item` when item is undefined
+	 * 				(throws instead when `allowUndefinedItem` is `false`; the key
 	 * 				selector is never called and node keeps its item).
-	 * 				`invalid_key` when the key selector does not return
-	 * 				a string for item: node's item is removed and item is not
-	 * 				added. Null when node is null, holds no item, or is not part
-	 * 				of this trie; nothing changes then.
+	 * 				`invalid_key` when the key selector does not return a string
+	 * 				for item: node's item is removed and item is not added.
+	 * 				`node_not_in_trie` when node is null, holds no item, or is
+	 * 				not part of this trie; nothing changes then.
 	 */
-	public update(node: TrieElement<ItemT> | null, item: ItemT): TrieElement<ItemT> | TrieError | null {
+	public update(node: TrieElement<ItemT> | null, item: ItemT): TrieElement<ItemT> | null {
+		this._lastError = null;
+
 		if (undefinedItemSkip(item, this.allowUndefinedItem, 'Trie')) {
-			return 'undefined_item';
+			return this.refuse('undefined_item');
 		}
 
 		if (!node || !this.isStored(node)) {
-			return null;
+			return this.refuse('node_not_in_trie');
 		}
 
 		const key = this.keySelector(item);
 
 		if (typeof key !== 'string') {
 			this.removeNode(node);
-			return 'invalid_key';
+			return this.refuse('invalid_key');
 		}
 
 		if (key === node._key) {
@@ -298,6 +307,23 @@ export class Trie<ItemT> implements DataStructure<ItemT> {
 		this.removeNode(node);
 
 		return this.store(item, key);
+	}
+
+	/**
+	 * Why the most recent `insert()` or `update()` returned null.
+	 * `insertArray()` and the constructor call `insert()` once per item, so
+	 * afterwards this describes the last item only.
+	 * @returns		The error code, or null when that call succeeded or none has
+	 * 				been made yet.
+	 */
+	public lastError(): TrieError | null {
+		return this._lastError;
+	}
+
+	/** Record why a call is refused, and return the null it returns. */
+	private refuse(code: TrieError): null {
+		this._lastError = code;
+		return null;
 	}
 
 	/**

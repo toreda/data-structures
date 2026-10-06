@@ -1,6 +1,7 @@
 import type {SpatialElement} from './element';
 import type {SpatialGrid} from './grid';
 import {type IterableType} from '../iterable/type';
+import {type Iterator} from '../iterator';
 
 /**
  * Iterates the items of a `SpatialHash` or `SpatialMap` in insertion order,
@@ -19,40 +20,40 @@ import {type IterableType} from '../iterable/type';
  *
  * @category Spatial
  */
-export class SpatialIterator<ItemT> implements Iterator<ItemT | null> {
+export class SpatialIterator<ItemT> implements Iterator<ItemT> {
 	private readonly grid: SpatialGrid<ItemT>;
 	private item: SpatialElement<ItemT> | null;
 	/** Link id item had when it was found, so a recycled element is caught. */
 	private linkId: number;
 	/** Returned by every `next()` call, so iterating allocates nothing. */
-	private readonly result: IterableType<ItemT | null>;
+	private readonly result: IterableType<ItemT | undefined>;
 
 	constructor(grid: SpatialGrid<ItemT>) {
 		this.grid = grid;
 		this.item = grid.first();
 		this.linkId = this.item !== null ? this.item._linkId : 0;
-		this.result = {value: null, done: false};
+		this.result = {value: undefined, done: false};
 	}
 
-	public next(): IterableType<ItemT | null> {
+	public next(): IteratorResult<ItemT, undefined> {
 		const item = this.item;
 		const result = this.result;
 
 		if (!item || item._grid !== this.grid || item._linkId !== this.linkId) {
 			this.item = null;
-			result.value = null;
+			result.value = undefined;
 			result.done = true;
 
-			return result;
+			return result as IteratorResult<ItemT, undefined>;
 		}
 
 		const next = item._next;
 		this.item = next;
 		this.linkId = next !== null ? next._linkId : 0;
 
-		result.value = item._value;
+		result.value = item._value as ItemT;
 		result.done = false;
 
-		return result;
+		return result as IteratorResult<ItemT, undefined>;
 	}
 }

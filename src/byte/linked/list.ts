@@ -49,10 +49,7 @@ export class ByteLinkedList<ItemT> extends LinkedList<ItemT> implements ByteData
 	 * Same as `LinkedList.filter()`, but the new list keeps this list's codec
 	 * as well as its options.
 	 */
-	public filter(
-		func: LinkedListMethod<ItemT, boolean>,
-		thisArg?: unknown
-	): ByteLinkedList<ItemT> {
+	public filter(func: LinkedListMethod<ItemT, boolean>, thisArg?: unknown): ByteLinkedList<ItemT> {
 		return new ByteLinkedList<ItemT>(this.codec, this.filterValues(func, thisArg), this.options());
 	}
 

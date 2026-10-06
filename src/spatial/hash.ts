@@ -64,6 +64,8 @@ export class SpatialHash<ItemT> implements DataStructure<ItemT> {
 	public readonly allowUndefinedItem: boolean;
 	/** Cell table, element links, and search walks. */
 	private readonly grid: SpatialGrid<ItemT>;
+	/** Why the last `insert()` or `update()` returned null. Null after a success. */
+	private _lastError: SpatialHashError | null;
 
 	/**
 	 * @param locator	Reads an item's position. Required, since items are
@@ -83,6 +85,7 @@ export class SpatialHash<ItemT> implements DataStructure<ItemT> {
 		this.grid = new SpatialGrid<ItemT>(locator, options);
 		this.cellSize = this.grid.cellSize;
 		this.allowUndefinedItem = booleanValue(true, options?.allowUndefinedItem);
+		this._lastError = null;
 
 		if (Array.isArray(data)) {
 			this.insertArray(data);
@@ -99,19 +102,21 @@ export class SpatialHash<ItemT> implements DataStructure<ItemT> {
 
 	/**
 	 * Insert item at the position its locator returns, in O(1) on average.
-	 * @returns		The element now holding item, or `invalid_position` when
-	 * 				item is undefined (throws instead when `allowUndefinedItem`
-	 * 				is `false`; the locator is never called) or when the locator
-	 * 				does not return finite x, y, and z coordinates in range.
-	 * 				Nothing is added then.
+	 * @returns		The element now holding item, or null when nothing is added.
+	 * 				`lastError()` then gives the reason, `invalid_position`: item
+	 * 				is undefined (throws instead when `allowUndefinedItem` is
+	 * 				`false`; the locator is never called) or the locator does not
+	 * 				return finite x, y, and z coordinates in range.
 	 */
-	public insert(item: ItemT): SpatialElement<ItemT> | SpatialHashError {
+	public insert(item: ItemT): SpatialElement<ItemT> | null {
+		this._lastError = null;
+
 		if (undefinedItemSkip(item, this.allowUndefinedItem, 'SpatialHash')) {
-			return 'invalid_position';
+			return this.refuse('invalid_position');
 		}
 
 		if (!this.grid.locate(item)) {
-			return 'invalid_position';
+			return this.refuse('invalid_position');
 		}
 
 		return this.grid.insertLocated(item);
@@ -194,29 +199,46 @@ export class SpatialHash<ItemT> implements DataStructure<ItemT> {
 	 * `hash.update(node, node.value())`. A move inside the same cell only
 	 * writes the new position. node keeps its place in insertion order.
 	 *
-	 * @returns		node, which keeps holding item. `invalid_position` when the
-	 * 				locator does not return finite x, y, and z coordinates in
+	 * @returns		node, which keeps holding item, or null when it was refused.
+	 * 				`lastError()` then gives the reason: `invalid_position` when
+	 * 				the locator does not return finite x, y, and z coordinates in
 	 * 				range for item: node is removed then and item is no longer
-	 * 				in the hash. Null when node is null or not part of this hash;
-	 * 				nothing changes then.
+	 * 				in the hash. `node_not_in_hash` when node is null or not part
+	 * 				of this hash; nothing changes then.
 	 */
-	public update(
-		node: SpatialElement<ItemT> | null,
-		item: ItemT
-	): SpatialElement<ItemT> | SpatialHashError | null {
+	public update(node: SpatialElement<ItemT> | null, item: ItemT): SpatialElement<ItemT> | null {
+		this._lastError = null;
+
 		if (!node || !this.grid.owns(node)) {
-			return null;
+			return this.refuse('node_not_in_hash');
 		}
 
 		if (!this.grid.locate(item)) {
 			this.grid.remove(node);
-			return 'invalid_position';
+			return this.refuse('invalid_position');
 		}
 
 		node._value = item;
 		this.grid.moveLocated(node);
 
 		return node;
+	}
+
+	/**
+	 * Why the most recent `insert()` or `update()` returned null.
+	 * `insertArray()` and the constructor call `insert()` once per item, so
+	 * afterwards this describes the last item only.
+	 * @returns		The error code, or null when that call succeeded or none has
+	 * 				been made yet.
+	 */
+	public lastError(): SpatialHashError | null {
+		return this._lastError;
+	}
+
+	/** Record why a call is refused, and return the null it returns. */
+	private refuse(code: SpatialHashError): null {
+		this._lastError = code;
+		return null;
 	}
 
 	/**

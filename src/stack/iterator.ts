@@ -12,34 +12,34 @@ import {type Iterator} from '../iterator';
  *
  * @category Stack
  */
-export class StackIterator<ItemT> implements Iterator<ItemT | null> {
+export class StackIterator<ItemT> implements Iterator<ItemT> {
 	/** Number of elements visited so far, counted from the top. */
 	private curr: number;
 	private stack: Stack<ItemT>;
 	/** Reused by every `next()` call. */
-	private readonly result: IterableType<ItemT | null>;
+	private readonly result: IterableType<ItemT | undefined>;
 
 	constructor(stack: Stack<ItemT>) {
 		this.stack = stack;
 		this.curr = 0;
-		this.result = {value: null, done: false};
+		this.result = {value: undefined, done: false};
 	}
 
-	next(): IterableType<ItemT | null> {
+	next(): IteratorResult<ItemT, undefined> {
 		const size = this.stack.size();
 		const result = this.result;
 
 		if (this.curr >= size) {
-			result.value = null;
+			result.value = undefined;
 			result.done = true;
 
-			return result;
+			return result as IteratorResult<ItemT, undefined>;
 		}
 
-		result.value = this.stack.at(this.curr);
+		result.value = this.stack.at(this.curr) as ItemT;
 		result.done = false;
 		this.curr++;
 
-		return result;
+		return result as IteratorResult<ItemT, undefined>;
 	}
 }

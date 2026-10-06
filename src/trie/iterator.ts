@@ -1,6 +1,7 @@
 import type {Trie} from '../trie';
 import type {TrieElement} from './element';
 import {type IterableType} from '../iterable/type';
+import {type Iterator} from '../iterator';
 
 /**
  * Iterates Trie items in key order, by following successor links. Holds no
@@ -14,31 +15,31 @@ import {type IterableType} from '../iterable/type';
  *
  * @category Trie
  */
-export class TrieIterator<ItemT> implements Iterator<ItemT | null> {
+export class TrieIterator<ItemT> implements Iterator<ItemT> {
 	private readonly trie: Trie<ItemT>;
 	private item: TrieElement<ItemT> | null;
 	/** Result returned by every `next()` call, reused to avoid allocation. */
-	private readonly result: IterableType<ItemT | null>;
+	private readonly result: IterableType<ItemT | undefined>;
 
 	constructor(trie: Trie<ItemT>) {
 		this.trie = trie;
 		this.item = trie.min();
-		this.result = {value: null, done: false};
+		this.result = {value: undefined, done: false};
 	}
 
-	public next(): IterableType<ItemT | null> {
+	public next(): IteratorResult<ItemT, undefined> {
 		const result = this.result;
 
 		if (!this.item) {
-			result.value = null;
+			result.value = undefined;
 			result.done = true;
-			return result;
+			return result as IteratorResult<ItemT, undefined>;
 		}
 
-		result.value = this.item._value;
+		result.value = this.item._value as ItemT;
 		result.done = false;
 		this.item = this.trie.successor(this.item);
 
-		return result;
+		return result as IteratorResult<ItemT, undefined>;
 	}
 }

@@ -266,9 +266,12 @@ describe('Trie', () => {
 		it('refuses items without a string key', () => {
 			const any = new Trie<any>(byWord);
 
-			expect(any.insert(5)).toBe('invalid_key');
-			expect(any.insert(null)).toBe('invalid_key');
-			expect(any.insert(undefined)).toBe('undefined_item');
+			expect(any.insert(5)).toBeNull();
+			expect(any.lastError()).toBe('invalid_key');
+			expect(any.insert(null)).toBeNull();
+			expect(any.lastError()).toBe('invalid_key');
+			expect(any.insert(undefined)).toBeNull();
+			expect(any.lastError()).toBe('undefined_item');
 			expect(any.size()).toBe(0);
 			expect(nodeCount(any)).toBe(1);
 		});
@@ -281,7 +284,8 @@ describe('Trie', () => {
 			expect(entries.get('k')).toBeNull();
 
 			// Skipped as a no-op: the stored null item is untouched.
-			expect(entries.insert(undefined)).toBe('undefined_item');
+			expect(entries.insert(undefined)).toBeNull();
+			expect(entries.lastError()).toBe('undefined_item');
 			expect(entries.get('k')).toBeNull();
 			expect(entries.size()).toBe(1);
 		});
@@ -497,7 +501,8 @@ describe('Trie', () => {
 			const entries = new Trie<Entry | undefined>(byOptK, [{k: 'a', v: 1}]);
 			const node = entries.find('a')!;
 
-			expect(entries.update(node, undefined)).toBe('undefined_item');
+			expect(entries.update(node, undefined)).toBeNull();
+			expect(entries.lastError()).toBe('undefined_item');
 			expect(entries.get('a')).toEqual({k: 'a', v: 1});
 			expect(entries.size()).toBe(1);
 
@@ -555,7 +560,8 @@ describe('Trie', () => {
 		it('removes the item when the new key is invalid', () => {
 			const entries = new Trie<any>(byWord, ['a', 'b']);
 
-			expect(entries.update(entries.find('a'), 5)).toBe('invalid_key');
+			expect(entries.update(entries.find('a'), 5)).toBeNull();
+			expect(entries.lastError()).toBe('invalid_key');
 			expect(entries.keys()).toEqual(['b']);
 			expectValid(entries);
 		});
@@ -564,8 +570,11 @@ describe('Trie', () => {
 			trie.insert('ab');
 
 			expect(trie.update(null, 'x')).toBeNull();
+			expect(trie.lastError()).toBe('node_not_in_trie');
 			expect(trie.update(trie.root(), 'x')).toBeNull();
+			expect(trie.lastError()).toBe('node_not_in_trie');
 			expect(trie.update(new TrieElement('q'), 'x')).toBeNull();
+			expect(trie.lastError()).toBe('node_not_in_trie');
 			expect(trie.keys()).toEqual(['ab']);
 		});
 	});

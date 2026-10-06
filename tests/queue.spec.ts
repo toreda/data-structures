@@ -356,23 +356,23 @@ describe('Queue', () => {
 				}).not.toThrow();
 			});
 
-			it('returns done with a null value', () => {
+			it('returns done with an undefined value', () => {
 				const iter = new QueueIterator(instance);
 				const res = iter.next();
 
 				expect(res.done).toBe(true);
-				expect(res.value).toBeNull();
+				expect(res.value).toBeUndefined();
 			});
 		});
 
 		describe('Iterator on singleton queue', () => {
-			it('returns the item, then done with a null value', () => {
+			it('returns the item, then done with an undefined value', () => {
 				instance.push('string');
 				const iter = new QueueIterator(instance);
 
 				expect(iter.next()).toEqual({value: 'string', done: false});
-				expect(iter.next()).toEqual({value: null, done: true});
-				expect(iter.next()).toEqual({value: null, done: true});
+				expect(iter.next()).toEqual({value: undefined, done: true});
+				expect(iter.next()).toEqual({value: undefined, done: true});
 			});
 		});
 

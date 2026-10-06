@@ -89,8 +89,10 @@ describe('SpatialMap', () => {
 			const node = map.insert(a) as SpatialElement<Pt>;
 
 			expect(node).toBeInstanceOf(SpatialElement);
-			expect(map.insert({x: 2.9, y: 3.0, z: 4.0})).toBe('cell_occupied');
-			expect(map.insert({x: 2.2, y: 3.3, z: 4.4})).toBe('cell_occupied');
+			expect(map.insert({x: 2.9, y: 3.0, z: 4.0})).toBeNull();
+			expect(map.lastError()).toBe('cell_occupied');
+			expect(map.insert({x: 2.2, y: 3.3, z: 4.4})).toBeNull();
+			expect(map.lastError()).toBe('cell_occupied');
 			expect(map.size()).toBe(1);
 			expect(map.find(a)).toBe(node);
 		});
@@ -111,8 +113,10 @@ describe('SpatialMap', () => {
 		});
 
 		it('refuses invalid positions', () => {
-			expect(map.insert({x: NaN, y: 0, z: 0})).toBe('invalid_position');
-			expect(map.insert(null as any)).toBe('invalid_position');
+			expect(map.insert({x: NaN, y: 0, z: 0})).toBeNull();
+			expect(map.lastError()).toBe('invalid_position');
+			expect(map.insert(null as any)).toBeNull();
+			expect(map.lastError()).toBe('invalid_position');
 			expect(map.size()).toBe(0);
 		});
 
@@ -128,7 +132,8 @@ describe('SpatialMap', () => {
 			const target = new SpatialMap<Pt>(byPoint, null, {cellSize: 10});
 
 			expect(target.insert({x: 1, y: 1, z: 1})).toBeInstanceOf(SpatialElement);
-			expect(target.insert({x: 9.99, y: 0, z: 5})).toBe('cell_occupied');
+			expect(target.insert({x: 9.99, y: 0, z: 5})).toBeNull();
+			expect(target.lastError()).toBe('cell_occupied');
 			expect(target.insert({x: 10, y: 0, z: 5})).toBeInstanceOf(SpatialElement);
 			expect(target.insert({x: -0.01, y: 0, z: 5})).toBeInstanceOf(SpatialElement);
 		});
@@ -248,7 +253,8 @@ describe('SpatialMap', () => {
 			const nodeB = map.insert(b) as SpatialElement<Pt>;
 			const moved = {x: 1.2, y: 0.5, z: 0.5, id: 1};
 
-			expect(map.update(nodeA, moved)).toBe('cell_occupied');
+			expect(map.update(nodeA, moved)).toBeNull();
+			expect(map.lastError()).toBe('cell_occupied');
 			expect(nodeA.value()).toBe(a);
 			expect(nodeA.x()).toBe(0.5);
 			expect(map.findCell(1, 0, 0)).toBe(nodeB);
@@ -273,7 +279,8 @@ describe('SpatialMap', () => {
 		it('removes the element when the new position is invalid', () => {
 			const node = map.insert({x: 0, y: 0, z: 0}) as SpatialElement<Pt>;
 
-			expect(map.update(node, {x: 0, y: NaN, z: 0})).toBe('invalid_position');
+			expect(map.update(node, {x: 0, y: NaN, z: 0})).toBeNull();
+			expect(map.lastError()).toBe('invalid_position');
 			expect(map.size()).toBe(0);
 		});
 
@@ -282,6 +289,7 @@ describe('SpatialMap', () => {
 			const node = other.insert({x: 0, y: 0, z: 0}) as SpatialElement<Pt>;
 
 			expect(map.update(null, {x: 0, y: 0, z: 0})).toBeNull();
+			expect(map.lastError()).toBe('node_not_in_map');
 			expect(map.update(node, {x: 5, y: 0, z: 0})).toBeNull();
 		});
 
@@ -295,7 +303,8 @@ describe('SpatialMap', () => {
 				const moved = {...node.value()!, x: random() * 6, y: random() * 6, z: random() * 6};
 				const result = map.update(node, moved);
 
-				if (result === 'cell_occupied') {
+				if (result === null) {
+					expect(map.lastError()).toBe('cell_occupied');
 					refused++;
 				} else {
 					expect(result).toBe(node);

@@ -1,6 +1,7 @@
 import type {OctTree} from '../tree';
 import type {OctTreeElement} from './element';
 import {type IterableType} from '../../iterable/type';
+import {type Iterator} from '../../iterator';
 
 /**
  * Iterates OctTree items in pre-order, each node before its octants, by
@@ -17,40 +18,40 @@ import {type IterableType} from '../../iterable/type';
  *
  * @category Quad Tree
  */
-export class OctTreeIterator<ItemT> implements Iterator<ItemT | null> {
+export class OctTreeIterator<ItemT> implements Iterator<ItemT> {
 	private readonly tree: OctTree<ItemT>;
 	private item: OctTreeElement<ItemT> | null;
 	/** Link id item had when it was found, so a recycled node is caught. */
 	private linkId: number;
 	/** Returned by every `next()` call, so iterating allocates nothing. */
-	private readonly result: IterableType<ItemT | null>;
+	private readonly result: IterableType<ItemT | undefined>;
 
 	constructor(tree: OctTree<ItemT>) {
 		this.tree = tree;
 		this.item = tree.root();
 		this.linkId = this.item !== null ? this.item._linkId : 0;
-		this.result = {value: null, done: false};
+		this.result = {value: undefined, done: false};
 	}
 
-	public next(): IterableType<ItemT | null> {
+	public next(): IteratorResult<ItemT, undefined> {
 		const item = this.item;
 		const result = this.result;
 
 		if (!item || item._tree !== this.tree || item._linkId !== this.linkId) {
 			this.item = null;
-			result.value = null;
+			result.value = undefined;
 			result.done = true;
 
-			return result;
+			return result as IteratorResult<ItemT, undefined>;
 		}
 
 		const next = this.tree.preOrderNext(item);
 		this.item = next;
 		this.linkId = next !== null ? next._linkId : 0;
 
-		result.value = item._value;
+		result.value = item._value as ItemT;
 		result.done = false;
 
-		return result;
+		return result as IteratorResult<ItemT, undefined>;
 	}
 }

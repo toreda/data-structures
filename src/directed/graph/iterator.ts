@@ -1,5 +1,6 @@
 import type {DirectedGraphVertex} from './vertex';
 import {type IterableType} from '../../iterable/type';
+import {type Iterator} from '../../iterator';
 
 /**
  * Iterates DirectedGraph items in vertex insertion order. Reads the graph's
@@ -14,30 +15,30 @@ import {type IterableType} from '../../iterable/type';
  *
  * @category Directed Graph
  */
-export class DirectedGraphIterator<ItemT> implements Iterator<ItemT | null> {
+export class DirectedGraphIterator<ItemT> implements Iterator<ItemT> {
 	private readonly source: Iterator<DirectedGraphVertex<ItemT>>;
 	/** Result object reused by every `next()` call. */
-	private readonly result: IterableType<ItemT | null>;
+	private readonly result: IterableType<ItemT | undefined>;
 
 	/**
 	 * @param source	Iterator over the graph's vertices, in insertion order.
 	 */
 	constructor(source: Iterator<DirectedGraphVertex<ItemT>>) {
 		this.source = source;
-		this.result = {value: null, done: false};
+		this.result = {value: undefined, done: false};
 	}
 
-	public next(): IterableType<ItemT | null> {
+	public next(): IteratorResult<ItemT, undefined> {
 		const step = this.source.next();
 
 		if (step.done) {
-			this.result.value = null;
+			this.result.value = undefined;
 			this.result.done = true;
 		} else {
-			this.result.value = step.value._value;
+			this.result.value = step.value._value as ItemT;
 			this.result.done = false;
 		}
 
-		return this.result;
+		return this.result as IteratorResult<ItemT, undefined>;
 	}
 }

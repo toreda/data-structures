@@ -14,32 +14,32 @@ import type {Iterator} from '../iterator';
  *
  * @category Queue
  */
-export class QueueIterator<ItemT> implements Iterator<ItemT | null> {
+export class QueueIterator<ItemT> implements Iterator<ItemT> {
 	/** Position from the front of the next item to visit. */
 	public curr: number;
 	public readonly queue: Queue<ItemT>;
 	/** Result object reused by every `next()` call. */
-	private readonly result: IterableType<ItemT | null>;
+	private readonly result: IterableType<ItemT | undefined>;
 
 	constructor(queue: Queue<ItemT>) {
 		this.queue = queue;
 		this.curr = 0;
-		this.result = {value: null, done: false};
+		this.result = {value: undefined, done: false};
 	}
 
-	public next(): IterableType<ItemT | null> {
+	public next(): IteratorResult<ItemT, undefined> {
 		const result = this.result;
 
 		if (this.curr >= this.queue.size()) {
-			result.value = null;
+			result.value = undefined;
 			result.done = true;
-			return result;
+			return result as IteratorResult<ItemT, undefined>;
 		}
 
-		result.value = this.queue.at(this.curr);
+		result.value = this.queue.at(this.curr) as ItemT;
 		result.done = false;
 		this.curr++;
 
-		return result;
+		return result as IteratorResult<ItemT, undefined>;
 	}
 }

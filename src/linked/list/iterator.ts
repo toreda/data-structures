@@ -1,6 +1,7 @@
 import {LinkedList} from '../list';
 import {LinkedListElement} from './element';
 import {type IterableType} from '../../iterable/type';
+import {type Iterator} from '../../iterator';
 
 /**
  * Iterates LinkedList values head to tail.
@@ -13,29 +14,29 @@ import {type IterableType} from '../../iterable/type';
  *
  * @category Linked List
  */
-export class LinkedListIterator<ItemT> implements Iterator<ItemT | null> {
+export class LinkedListIterator<ItemT> implements Iterator<ItemT> {
 	private item: LinkedListElement<ItemT> | null;
 	/** Result returned by every `next()` call, reused to avoid allocation. */
-	private readonly result: IterableType<ItemT | null>;
+	private readonly result: IterableType<ItemT | undefined>;
 
 	constructor(linkedList: LinkedList<ItemT>) {
 		this.item = linkedList.head();
-		this.result = {value: null, done: false};
+		this.result = {value: undefined, done: false};
 	}
 
-	public next(): IterableType<ItemT | null> {
+	public next(): IteratorResult<ItemT, undefined> {
 		const result = this.result;
 
 		if (!this.item) {
-			result.value = null;
+			result.value = undefined;
 			result.done = true;
-			return result;
+			return result as IteratorResult<ItemT, undefined>;
 		}
 
-		result.value = this.item.value();
+		result.value = this.item.value() as ItemT;
 		result.done = false;
 		this.item = this.item.next();
 
-		return result;
+		return result as IteratorResult<ItemT, undefined>;
 	}
 }

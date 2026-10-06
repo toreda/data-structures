@@ -357,7 +357,8 @@ describe('RedBlackTree', () => {
 
 			expect(anything.values()).toEqual([null, 3]);
 			expect(anything.size()).toBe(2);
-			expect(anything.insert(undefined)).toBe('undefined_item');
+			expect(anything.insert(undefined)).toBeNull();
+			expect(anything.lastError()).toBe('undefined_item');
 		});
 
 		it('insertArray ignores non-arrays', () => {
@@ -563,15 +564,18 @@ describe('RedBlackTree', () => {
 			}
 		});
 
-		it('when disabled, insert returns an error code and adds nothing', () => {
+		it('when disabled, insert returns null, sets lastError, and adds nothing', () => {
 			const unique = new RedBlackTree<number>(byNumber, [5, 3, 8], {allowDuplicates: false});
 			const allocatedBefore = poolOf(unique)!.size();
 
-			expect(unique.insert(3)).toBe('duplicate_not_allowed');
-			expect(unique.insert(8)).toBe('duplicate_not_allowed');
+			expect(unique.insert(3)).toBeNull();
+			expect(unique.lastError()).toBe('duplicate_not_allowed');
+			expect(unique.insert(8)).toBeNull();
+			expect(unique.lastError()).toBe('duplicate_not_allowed');
 			expect(unique.size()).toBe(3);
 			expect(poolOf(unique)!.size()).toBe(allocatedBefore);
 			expect(unique.insert(4)).toBeInstanceOf(RedBlackTreeElement);
+			expect(unique.lastError()).toBeNull();
 			expect(unique.values()).toEqual([3, 4, 5, 8]);
 			expectValid(unique);
 		});
@@ -588,7 +592,8 @@ describe('RedBlackTree', () => {
 			const copy = unique.filter(() => true);
 
 			expect(copy.allowDuplicates).toBe(false);
-			expect(copy.insert(1)).toBe('duplicate_not_allowed');
+			expect(copy.insert(1)).toBeNull();
+			expect(copy.lastError()).toBe('duplicate_not_allowed');
 		});
 	});
 
@@ -686,9 +691,11 @@ describe('RedBlackTree', () => {
 		it('when duplicates are disabled, removes an item that now equals another', () => {
 			const unique = new RedBlackTree<number>(byNumber, [50, 30, 70], {allowDuplicates: false});
 
-			expect(unique.update(unique.find(30), 70)).toBe('duplicate_not_allowed');
+			expect(unique.update(unique.find(30), 70)).toBeNull();
+			expect(unique.lastError()).toBe('duplicate_not_allowed');
 			expect(unique.values()).toEqual([50, 70]);
-			expect(unique.update(unique.find(70), 50)).toBe('duplicate_not_allowed');
+			expect(unique.update(unique.find(70), 50)).toBeNull();
+			expect(unique.lastError()).toBe('duplicate_not_allowed');
 			expect(unique.values()).toEqual([50]);
 			expectValid(unique);
 		});
@@ -774,7 +781,7 @@ describe('RedBlackTree', () => {
 
 				for (let i = 0; i < 200; i++) {
 					const result = numbers.insert(Math.floor(random() * 1000));
-					if (typeof result !== 'string') {
+					if (result) {
 						nodes.push(result);
 					}
 				}
@@ -787,7 +794,8 @@ describe('RedBlackTree', () => {
 					const to = Math.floor(random() * 1000);
 					const result = numbers.update(node, to);
 
-					if (result === 'duplicate_not_allowed') {
+					if (result === null) {
+						expect(numbers.lastError()).toBe('duplicate_not_allowed');
 						expect(allowDuplicates).toBe(false);
 						expect(node._tree).toBeNull();
 						nodes.splice(index, 1);
@@ -838,7 +846,8 @@ describe('RedBlackTree', () => {
 			const unique = new RedBlackTree<number>(byNumber, [50, 30, 70, 20], {allowDuplicates: false});
 			const node = unique.find(20)!;
 
-			expect(unique.update(node, 70)).toBe('duplicate_not_allowed');
+			expect(unique.update(node, 70)).toBeNull();
+			expect(unique.lastError()).toBe('duplicate_not_allowed');
 			expect(node._tree).toBeNull();
 			expect(unique.size()).toBe(3);
 			expect(poolOf(unique)!.size()).toBe(3);
@@ -853,7 +862,8 @@ describe('RedBlackTree', () => {
 			});
 			const node = plain.find(20)!;
 
-			expect(plain.update(node, 70)).toBe('duplicate_not_allowed');
+			expect(plain.update(node, 70)).toBeNull();
+			expect(plain.lastError()).toBe('duplicate_not_allowed');
 			expect(node.value()).toBeNull();
 			expect(node._tree).toBeNull();
 			expect(plain.values()).toEqual([30, 50, 70]);
@@ -865,7 +875,9 @@ describe('RedBlackTree', () => {
 			const foreign = new RedBlackTreeElement<number>(5);
 
 			expect(numbers.update(null, 3)).toBeNull();
+			expect(numbers.lastError()).toBe('node_not_in_tree');
 			expect(numbers.update(foreign, 3)).toBeNull();
+			expect(numbers.lastError()).toBe('node_not_in_tree');
 			expect(foreign.value()).toBe(5);
 			expect(numbers.values()).toEqual([1, 2]);
 		});
@@ -1043,8 +1055,8 @@ describe('RedBlackTree', () => {
 			const done = iterator.next();
 
 			expect(done).toBe(first);
-			expect(done).toEqual({value: null, done: true});
-			expect(iterator.next()).toEqual({value: null, done: true});
+			expect(done).toEqual({value: undefined, done: true});
+			expect(iterator.next()).toEqual({value: undefined, done: true});
 			expect(tree[Symbol.iterator]().next()).not.toBe(first);
 		});
 

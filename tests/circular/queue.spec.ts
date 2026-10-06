@@ -324,12 +324,12 @@ describe('CircularQueue', () => {
 			expect([...new CircularQueue<number>()]).toEqual([]);
 		});
 
-		it('iterator reports done with a null value when exhausted', () => {
+		it('iterator reports done with an undefined value when exhausted', () => {
 			const iter = new CircularQueueIterator(new CircularQueue<number>([10]));
 
 			expect(iter.next()).toEqual({value: 10, done: false});
-			expect(iter.next()).toEqual({value: null, done: true});
-			expect(iter.next()).toEqual({value: null, done: true});
+			expect(iter.next()).toEqual({value: undefined, done: true});
+			expect(iter.next()).toEqual({value: undefined, done: true});
 		});
 
 		it('iterator reuses one result object', () => {

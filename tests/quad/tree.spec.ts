@@ -236,10 +236,14 @@ describe('QuadTree', () => {
 		});
 
 		it('returns invalid_position when the locator gives no finite point', () => {
-			expect(tree.insert({x: NaN, y: 0})).toBe('invalid_position');
-			expect(tree.insert({x: 0, y: -Infinity})).toBe('invalid_position');
-			expect(tree.insert({x: '1', y: 0} as any)).toBe('invalid_position');
-			expect(tree.insert(null as any)).toBe('invalid_position');
+			expect(tree.insert({x: NaN, y: 0})).toBeNull();
+			expect(tree.lastError()).toBe('invalid_position');
+			expect(tree.insert({x: 0, y: -Infinity})).toBeNull();
+			expect(tree.lastError()).toBe('invalid_position');
+			expect(tree.insert({x: '1', y: 0} as any)).toBeNull();
+			expect(tree.lastError()).toBe('invalid_position');
+			expect(tree.insert(null as any)).toBeNull();
+			expect(tree.lastError()).toBe('invalid_position');
 			expect(tree.size()).toBe(0);
 		});
 
@@ -257,7 +261,8 @@ describe('QuadTree', () => {
 			const unique = new QuadTree<Pt>(byPoint, [], {allowDuplicates: false});
 			unique.insert({x: 1, y: 1});
 
-			expect(unique.insert({x: 1, y: 1})).toBe('duplicate_not_allowed');
+			expect(unique.insert({x: 1, y: 1})).toBeNull();
+			expect(unique.lastError()).toBe('duplicate_not_allowed');
 			expect(unique.insert({x: 1, y: 2})).toBeInstanceOf(QuadTreeElement);
 			expect(unique.size()).toBe(2);
 		});
@@ -411,7 +416,8 @@ describe('QuadTree', () => {
 		it('removes the node when the new position is invalid', () => {
 			const node = tree.insert({x: 1, y: 1}) as QuadTreeElement<Pt>;
 
-			expect(tree.update(node, {x: NaN, y: 1})).toBe('invalid_position');
+			expect(tree.update(node, {x: NaN, y: 1})).toBeNull();
+			expect(tree.lastError()).toBe('invalid_position');
 			expect(tree.size()).toBe(0);
 		});
 
@@ -419,14 +425,17 @@ describe('QuadTree', () => {
 			const unique = new QuadTree<Pt>(byPoint, [{x: 1, y: 1}], {allowDuplicates: false});
 			const node = unique.insert({x: 2, y: 2}) as QuadTreeElement<Pt>;
 
-			expect(unique.update(node, {x: 1, y: 1})).toBe('duplicate_not_allowed');
+			expect(unique.update(node, {x: 1, y: 1})).toBeNull();
+			expect(unique.lastError()).toBe('duplicate_not_allowed');
 			expect(unique.size()).toBe(1);
 			expectValid(unique);
 		});
 
 		it('returns null for foreign nodes', () => {
 			expect(tree.update(null, {x: 1, y: 1})).toBeNull();
+			expect(tree.lastError()).toBe('node_not_in_tree');
 			expect(tree.update(new QuadTreeElement<Pt>(), {x: 1, y: 1})).toBeNull();
+			expect(tree.lastError()).toBe('node_not_in_tree');
 		});
 	});
 
@@ -990,7 +999,8 @@ describe('QuadTree', () => {
 					.reduce((a, b) => (unique.depth(b)! > unique.depth(a)! ? b : a));
 				const size = unique.size();
 
-				expect(unique.insert({x: deepest.x(), y: deepest.y()})).toBe('duplicate_not_allowed');
+				expect(unique.insert({x: deepest.x(), y: deepest.y()})).toBeNull();
+				expect(unique.lastError()).toBe('duplicate_not_allowed');
 				expect(unique.size()).toBe(size);
 				expectValid(unique);
 				expectScratchClean(unique);
@@ -1007,7 +1017,8 @@ describe('QuadTree', () => {
 				item.y = deepest.y();
 				const size = unique.size();
 
-				expect(unique.update(mover, item)).toBe('duplicate_not_allowed');
+				expect(unique.update(mover, item)).toBeNull();
+				expect(unique.lastError()).toBe('duplicate_not_allowed');
 				expect(unique.size()).toBe(size - 1);
 				expect(mover._tree).toBeNull();
 				expect(unique.find({x: item.x, y: item.y})).toBe(deepest);
@@ -1124,7 +1135,7 @@ describe('QuadTree', () => {
 
 				expect(values).toEqual(tree.preOrder());
 				expect(iterator.next().done).toBe(true);
-				expect(iterator.next().value).toBeNull();
+				expect(iterator.next().value).toBeUndefined();
 			});
 
 			it('ends instead of yielding a removed node with pooling on', () => {

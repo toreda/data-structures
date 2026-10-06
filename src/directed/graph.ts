@@ -95,6 +95,8 @@ export class DirectedGraph<ItemT> implements Graph<
 	private readonly _edges: Set<DirectedGraphEdge<ItemT>>;
 	/** Last id handed to a linked vertex. Only increases, so ids never repeat. */
 	private lastLinkId: number;
+	/** Why the last `addEdge()` or `addBidirectionalEdge()` returned null. Null after a success. */
+	private _lastError: DirectedGraphError | null;
 	/** Source of vertex wrappers, pooled or freshly allocated per options. */
 	private readonly vertexPool: ElementPool<DirectedGraphVertex<ItemT>>;
 	/** Source of edge wrappers, pooled or freshly allocated per options. */
@@ -140,6 +142,7 @@ export class DirectedGraph<ItemT> implements Graph<
 		this._vertices = new Set();
 		this._edges = new Set();
 		this.lastLinkId = 0;
+		this._lastError = null;
 		// Both wrapper classes are generic and the pools build blank wrappers,
 		// so any ItemT instantiation is valid here.
 		this.vertexPool = new ElementPool(
@@ -268,23 +271,26 @@ export class DirectedGraph<ItemT> implements Graph<
 	 * Add a one-way edge, traveled only from `from` to `to`. `from` and `to`
 	 * may be the same vertex, which adds a loop.
 	 * @param weight	Cost of traveling the edge. Defaults to 1 when omitted.
-	 * @returns		The new edge, or an error code when nothing was added:
-	 * 				`vertex_not_in_graph` when either vertex is null or not part
-	 * 				of this graph, `edge_exists` when an edge can already be
-	 * 				traveled from `from` to `to`, `invalid_weight` when weight is
-	 * 				not a finite number of 0 or more.
+	 * @returns		The new edge, or null when nothing was added. `lastError()`
+	 * 				then gives the reason: `vertex_not_in_graph` when either
+	 * 				vertex is null or not part of this graph, `edge_exists` when
+	 * 				an edge can already be traveled from `from` to `to`,
+	 * 				`invalid_weight` when weight is not a finite number of 0 or
+	 * 				more.
 	 */
 	public addEdge(
 		from: DirectedGraphVertex<ItemT> | null,
 		to: DirectedGraphVertex<ItemT> | null,
 		weight?: number
-	): DirectedGraphEdge<ItemT> | DirectedGraphError {
+	): DirectedGraphEdge<ItemT> | null {
+		this._lastError = null;
+
 		if (!this.isPartOfGraph(from) || !this.isPartOfGraph(to)) {
-			return 'vertex_not_in_graph';
+			return this.refuse('vertex_not_in_graph');
 		}
 
 		if (from._out.has(to)) {
-			return 'edge_exists';
+			return this.refuse('edge_exists');
 		}
 
 		return this.linkEdge(from, to, weight, false);
@@ -294,26 +300,44 @@ export class DirectedGraph<ItemT> implements Graph<
 	 * Add an edge traveled both ways between `a` and `b`, at the same weight in
 	 * each direction. It counts as one edge: `from()` is `a` and `to()` is `b`.
 	 * @param weight	Cost of traveling the edge. Defaults to 1 when omitted.
-	 * @returns		The new edge, or an error code when nothing was added:
-	 * 				`vertex_not_in_graph` when either vertex is null or not part
-	 * 				of this graph, `edge_exists` when an edge can already be
-	 * 				traveled between them in either direction, `invalid_weight`
-	 * 				when weight is not a finite number of 0 or more.
+	 * @returns		The new edge, or null when nothing was added. `lastError()`
+	 * 				then gives the reason: `vertex_not_in_graph` when either
+	 * 				vertex is null or not part of this graph, `edge_exists` when
+	 * 				an edge can already be traveled between them in either
+	 * 				direction, `invalid_weight` when weight is not a finite
+	 * 				number of 0 or more.
 	 */
 	public addBidirectionalEdge(
 		a: DirectedGraphVertex<ItemT> | null,
 		b: DirectedGraphVertex<ItemT> | null,
 		weight?: number
-	): DirectedGraphEdge<ItemT> | DirectedGraphError {
+	): DirectedGraphEdge<ItemT> | null {
+		this._lastError = null;
+
 		if (!this.isPartOfGraph(a) || !this.isPartOfGraph(b)) {
-			return 'vertex_not_in_graph';
+			return this.refuse('vertex_not_in_graph');
 		}
 
 		if (a._out.has(b) || b._out.has(a)) {
-			return 'edge_exists';
+			return this.refuse('edge_exists');
 		}
 
 		return this.linkEdge(a, b, weight, true);
+	}
+
+	/**
+	 * Why the most recent `addEdge()` or `addBidirectionalEdge()` returned null.
+	 * @returns		The error code, or null when that call succeeded or none has
+	 * 				been made yet.
+	 */
+	public lastError(): DirectedGraphError | null {
+		return this._lastError;
+	}
+
+	/** Record why a call is refused, and return the null it returns. */
+	private refuse(code: DirectedGraphError): null {
+		this._lastError = code;
+		return null;
 	}
 
 	/**
@@ -924,11 +948,11 @@ export class DirectedGraph<ItemT> implements Graph<
 		to: DirectedGraphVertex<ItemT>,
 		weight: number | undefined,
 		bidirectional: boolean
-	): DirectedGraphEdge<ItemT> | DirectedGraphError {
+	): DirectedGraphEdge<ItemT> | null {
 		const value = weight === undefined ? 1 : weight;
 
 		if (!Number.isFinite(value) || value < 0) {
-			return 'invalid_weight';
+			return this.refuse('invalid_weight');
 		}
 
 		const edge = this.edgePool.allocate();

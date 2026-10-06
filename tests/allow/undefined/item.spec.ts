@@ -149,8 +149,10 @@ describe('allowUndefinedItem', () => {
 
 			expect(bst.size()).toBe(2);
 			expect(rbt.size()).toBe(2);
-			expect(bst.insert(undefined as any)).toBe('undefined_item');
-			expect(rbt.insert(undefined as any)).toBe('undefined_item');
+			expect(bst.insert(undefined as any)).toBeNull();
+			expect(bst.lastError()).toBe('undefined_item');
+			expect(rbt.insert(undefined as any)).toBeNull();
+			expect(rbt.lastError()).toBe('undefined_item');
 			expect(bst.size()).toBe(2);
 			expect(rbt.size()).toBe(2);
 		});
@@ -168,7 +170,8 @@ describe('allowUndefinedItem', () => {
 			const trie = new Trie<{key: string}>(keyOf, [{key: 'a'}, undefined as any]);
 
 			expect(trie.size()).toBe(1);
-			expect(trie.insert(undefined as any)).toBe('undefined_item');
+			expect(trie.insert(undefined as any)).toBeNull();
+			expect(trie.lastError()).toBe('undefined_item');
 			expect(trie.size()).toBe(1);
 		});
 
@@ -189,8 +192,10 @@ describe('allowUndefinedItem', () => {
 
 			expect(quad.size()).toBe(1);
 			expect(oct.size()).toBe(1);
-			expect(quad.insert(undefined as any)).toBe('invalid_position');
-			expect(oct.insert(undefined as any)).toBe('invalid_position');
+			expect(quad.insert(undefined as any)).toBeNull();
+			expect(quad.lastError()).toBe('invalid_position');
+			expect(oct.insert(undefined as any)).toBeNull();
+			expect(oct.lastError()).toBe('invalid_position');
 		});
 
 		it('throws when disallowed', () => {
@@ -210,8 +215,10 @@ describe('allowUndefinedItem', () => {
 
 			expect(hash.size()).toBe(1);
 			expect(map.size()).toBe(1);
-			expect(hash.insert(undefined as any)).toBe('invalid_position');
-			expect(map.insert(undefined as any)).toBe('invalid_position');
+			expect(hash.insert(undefined as any)).toBeNull();
+			expect(hash.lastError()).toBe('invalid_position');
+			expect(map.insert(undefined as any)).toBeNull();
+			expect(map.lastError()).toBe('invalid_position');
 		});
 
 		it('throws when disallowed', () => {

@@ -228,7 +228,8 @@ describe('BinarySearchTree', () => {
 
 			expect(anything.values()).toEqual([null, 3]);
 			expect(anything.size()).toBe(2);
-			expect(anything.insert(undefined)).toBe('undefined_item');
+			expect(anything.insert(undefined)).toBeNull();
+			expect(anything.lastError()).toBe('undefined_item');
 		});
 
 		it('insertArray ignores non-arrays', () => {
@@ -404,15 +405,18 @@ describe('BinarySearchTree', () => {
 			}
 		});
 
-		it('when disabled, insert returns an error code and adds nothing', () => {
+		it('when disabled, insert returns null, sets lastError, and adds nothing', () => {
 			const unique = new BinarySearchTree<number>(byNumber, [5, 3, 8], {allowDuplicates: false});
 			const allocatedBefore = poolOf(unique)!.size();
 
-			expect(unique.insert(3)).toBe('duplicate_not_allowed');
-			expect(unique.insert(8)).toBe('duplicate_not_allowed');
+			expect(unique.insert(3)).toBeNull();
+			expect(unique.lastError()).toBe('duplicate_not_allowed');
+			expect(unique.insert(8)).toBeNull();
+			expect(unique.lastError()).toBe('duplicate_not_allowed');
 			expect(unique.size()).toBe(3);
 			expect(poolOf(unique)!.size()).toBe(allocatedBefore);
 			expect(unique.insert(4)).toBeInstanceOf(BinarySearchTreeElement);
+			expect(unique.lastError()).toBeNull();
 			expect(unique.values()).toEqual([3, 4, 5, 8]);
 			expectValid(unique);
 		});
@@ -429,7 +433,8 @@ describe('BinarySearchTree', () => {
 			const copy = unique.filter(() => true);
 
 			expect(copy.allowDuplicates).toBe(false);
-			expect(copy.insert(1)).toBe('duplicate_not_allowed');
+			expect(copy.insert(1)).toBeNull();
+			expect(copy.lastError()).toBe('duplicate_not_allowed');
 		});
 	});
 
@@ -528,9 +533,11 @@ describe('BinarySearchTree', () => {
 		it('when duplicates are disabled, removes an item that now equals another', () => {
 			const unique = new BinarySearchTree<number>(byNumber, [50, 30, 70], {allowDuplicates: false});
 
-			expect(unique.update(unique.find(30), 70)).toBe('duplicate_not_allowed');
+			expect(unique.update(unique.find(30), 70)).toBeNull();
+			expect(unique.lastError()).toBe('duplicate_not_allowed');
 			expect(unique.values()).toEqual([50, 70]);
-			expect(unique.update(unique.find(70), 50)).toBe('duplicate_not_allowed');
+			expect(unique.update(unique.find(70), 50)).toBeNull();
+			expect(unique.lastError()).toBe('duplicate_not_allowed');
 			expect(unique.values()).toEqual([50]);
 			expectValid(unique);
 		});
@@ -618,7 +625,8 @@ describe('BinarySearchTree', () => {
 			});
 			const node = plain.find(20)!;
 
-			expect(plain.update(node, 70)).toBe('duplicate_not_allowed');
+			expect(plain.update(node, 70)).toBeNull();
+			expect(plain.lastError()).toBe('duplicate_not_allowed');
 			expect(node.value()).toBeNull();
 			expect(node._tree).toBeNull();
 			expect(plain.values()).toEqual([30, 50, 70]);
@@ -629,7 +637,8 @@ describe('BinarySearchTree', () => {
 			const unique = new BinarySearchTree<number>(byNumber, [50, 30, 70, 20], {allowDuplicates: false});
 			const node = unique.find(20)!;
 
-			expect(unique.update(node, 70)).toBe('duplicate_not_allowed');
+			expect(unique.update(node, 70)).toBeNull();
+			expect(unique.lastError()).toBe('duplicate_not_allowed');
 			expect(node._tree).toBeNull();
 			expect(unique.size()).toBe(3);
 			expect(poolOf(unique)!.size()).toBe(3);
@@ -642,7 +651,9 @@ describe('BinarySearchTree', () => {
 			const foreign = new BinarySearchTreeElement<number>(5);
 
 			expect(numbers.update(null, 3)).toBeNull();
+			expect(numbers.lastError()).toBe('node_not_in_tree');
 			expect(numbers.update(foreign, 3)).toBeNull();
+			expect(numbers.lastError()).toBe('node_not_in_tree');
 			expect(foreign.value()).toBe(5);
 			expect(numbers.values()).toEqual([1, 2]);
 		});
@@ -800,7 +811,7 @@ describe('BinarySearchTree', () => {
 			const end = it.next();
 			expect(end).toBe(first);
 			expect(end.done).toBe(true);
-			expect(end.value).toBeNull();
+			expect(end.value).toBeUndefined();
 		});
 	});
 

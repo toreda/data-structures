@@ -1,6 +1,7 @@
 import type {RedBlackTree} from '../tree';
 import type {RedBlackTreeElement} from './element';
 import {type IterableType} from '../../../iterable/type';
+import {type Iterator} from '../../../iterator';
 
 /**
  * Iterates RedBlackTree items in sorted (in-order) order, smallest first, by
@@ -15,31 +16,31 @@ import {type IterableType} from '../../../iterable/type';
  *
  * @category Red Black Tree
  */
-export class RedBlackTreeIterator<ItemT> implements Iterator<ItemT | null> {
+export class RedBlackTreeIterator<ItemT> implements Iterator<ItemT> {
 	private readonly tree: RedBlackTree<ItemT>;
 	private item: RedBlackTreeElement<ItemT> | null;
 	/** Returned by every `next()` call, updated in place. */
-	private readonly result: IterableType<ItemT | null>;
+	private readonly result: IterableType<ItemT | undefined>;
 
 	constructor(tree: RedBlackTree<ItemT>) {
 		this.tree = tree;
 		this.item = tree.min();
-		this.result = {value: null, done: false};
+		this.result = {value: undefined, done: false};
 	}
 
-	public next(): IterableType<ItemT | null> {
+	public next(): IteratorResult<ItemT, undefined> {
 		const result = this.result;
 
 		if (!this.item) {
-			result.value = null;
+			result.value = undefined;
 			result.done = true;
-			return result;
+			return result as IteratorResult<ItemT, undefined>;
 		}
 
-		result.value = this.item._value;
+		result.value = this.item._value as ItemT;
 		result.done = false;
 		this.item = this.tree.successor(this.item);
 
-		return result;
+		return result as IteratorResult<ItemT, undefined>;
 	}
 }
