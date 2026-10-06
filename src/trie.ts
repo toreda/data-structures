@@ -1,3 +1,5 @@
+import {arrayInsertAt} from './array/insert/at';
+import {arrayRemoveAt} from './array/remove/at';
 import type {DataStructure} from './data/structure';
 import {ElementPool} from './element/pool';
 import type {ObjectPoolConstructor} from './object/pool/constructor';
@@ -8,88 +10,15 @@ import {trieCodeSearch} from './trie/code/search';
 import {TrieElement} from './trie/element';
 import type {TrieError} from './trie/error';
 import {TrieIterator} from './trie/iterator';
+import {trieKeyOf} from './trie/key/of';
 import type {TrieKeySelector} from './trie/key/selector';
 import type {TrieMethod} from './trie/method';
+import {trieNodeOf} from './trie/node/of';
 import type {TrieOptions} from './trie/options';
+import {TrieQueryResult} from './trie/query/result';
+import {trieValueOf} from './trie/value/of';
 import {booleanValue} from './boolean/value';
 import {isNumber, undefinedItemSkip} from './utility';
-
-/** Pick for `collect()` keeping the node itself, as `withPrefix()` returns. */
-function trieNodeOf<T>(node: TrieElement<T>): TrieElement<T> {
-	return node;
-}
-
-/** Pick for `collect()` reading the node's key, as `keysWithPrefix()` returns. */
-function trieKeyOf<T>(node: TrieElement<T>): string {
-	return node._key as string;
-}
-
-/** Pick for `collect()` reading the node's item, as `values()` returns. */
-function trieValueOf<T>(node: TrieElement<T>): T {
-	return node._value as T;
-}
-
-/** Insert value at index, shifting later entries up. Unlike `splice`, allocates no result array. */
-function arrayInsertAt<T>(arr: T[], index: number, value: T): void {
-	for (let i = arr.length; i > index; i--) {
-		arr[i] = arr[i - 1];
-	}
-
-	arr[index] = value;
-}
-
-/** Remove the entry at index, shifting later entries down. Unlike `splice`, allocates no result array. */
-function arrayRemoveAt<T>(arr: T[], index: number): void {
-	for (let i = index + 1; i < arr.length; i++) {
-		arr[i - 1] = arr[i];
-	}
-
-	arr.pop();
-}
-
-/**
- * Single `query()` match. One shared class, so each match allocates one
- * object and no bound functions: `key`, `index`, and `delete` are prototype
- * methods, so call them on the result rather than detaching them.
- */
-class TrieQueryResult<ItemT> implements QueryResult<TrieElement<ItemT>, ItemT> {
-	public readonly element: TrieElement<ItemT>;
-	private readonly trie: Trie<ItemT>;
-	/** Link id of the matched item when it matched. */
-	private readonly linkId: number;
-	/** Key of the matched item, kept after the item is removed or replaced. */
-	private readonly matchedKey: string | null;
-
-	constructor(trie: Trie<ItemT>, element: TrieElement<ItemT>) {
-		this.trie = trie;
-		this.element = element;
-		this.linkId = element._linkId;
-		this.matchedKey = element._key;
-	}
-
-	/** Key of the matched item, even after it is removed. */
-	public key(): string | null {
-		return this.matchedKey;
-	}
-
-	/** Always null: a trie orders items by key, not by index. */
-	public index(): number | null {
-		return null;
-	}
-
-	/**
-	 * Remove the matched item, but only while the element still holds it.
-	 * Removing or replacing the item changes its link id, so a stale result
-	 * deletes nothing instead of a later item.
-	 */
-	public delete(): ItemT | null {
-		if (this.element._linkId !== this.linkId) {
-			return null;
-		}
-
-		return this.trie.removeNode(this.element);
-	}
-}
 
 /**
  * Trie (prefix tree) mapping string keys to items. Each item's key is read by

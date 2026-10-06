@@ -1,7 +1,9 @@
 // Base
 export type {DataStructure} from './data/structure';
 export type {DataStructureOptions} from './data/structure/options';
+export {arrayInsertAt} from './array/insert/at';
 export type {ArrayMethod} from './array/method';
+export {arrayRemoveAt} from './array/remove/at';
 export type {Element} from './element';
 export {ElementPool} from './element/pool';
 
@@ -166,9 +168,13 @@ export {Trie} from './trie';
 export {TrieElement} from './trie/element';
 export type {TrieError} from './trie/error';
 export {TrieIterator} from './trie/iterator';
+export {trieKeyOf} from './trie/key/of';
 export type {TrieKeySelector} from './trie/key/selector';
 export type {TrieMethod} from './trie/method';
+export {trieNodeOf} from './trie/node/of';
 export type {TrieOptions} from './trie/options';
+export {TrieQueryResult} from './trie/query/result';
+export {trieValueOf} from './trie/value/of';
 
 // Query
 export type {QueryFilter} from './query/filter';
