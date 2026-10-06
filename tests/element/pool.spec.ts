@@ -155,6 +155,14 @@ describe('ElementPool', () => {
 			});
 		});
 
+		it('ignores invalid pool entries instead of throwing from the data structure', () => {
+			const options = {pool: {maxSize: 'x' as any, startSize: -1, increaseFactor: 0}};
+
+			expect(() => new ElementPool(Node, options)).not.toThrow();
+			const list = new LinkedList<number>([1, 2, 3], options);
+			expect(list.values()).toEqual([1, 2, 3]);
+		});
+
 		it('rebuilds an equivalent pool', () => {
 			const source = new ElementPool(Node, {pool: {startSize: 2, maxSize: 2}});
 			const copy = new ElementPool(Node, source.options());

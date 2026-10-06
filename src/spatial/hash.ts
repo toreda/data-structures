@@ -199,12 +199,17 @@ export class SpatialHash<ItemT> implements DataStructure<ItemT> {
 	 * `hash.update(node, node.value())`. A move inside the same cell only
 	 * writes the new position. node keeps its place in insertion order.
 	 *
-	 * @returns		node, which keeps holding item, or null when it was refused.
-	 * 				`lastError()` then gives the reason: `invalid_position` when
-	 * 				the locator does not return finite x, y, and z coordinates in
-	 * 				range for item: node is removed then and item is no longer
-	 * 				in the hash. `node_not_in_hash` when node is null or not part
-	 * 				of this hash; nothing changes then.
+	 * @remarks
+	 * A refused update changes nothing: node keeps its item and position. When
+	 * item was changed in place, its locator now disagrees with node, so either
+	 * restore its position or remove it with `removeNode()`, since `remove()`
+	 * searches by the locator's position.
+	 *
+	 * @returns		node, which keeps holding item, or null when it was refused
+	 * 				and nothing changed. `lastError()` then gives the reason:
+	 * 				`invalid_position` when the locator does not return finite x,
+	 * 				y, and z coordinates in range for item, or `node_not_in_hash`
+	 * 				when node is null or not part of this hash.
 	 */
 	public update(node: SpatialElement<ItemT> | null, item: ItemT): SpatialElement<ItemT> | null {
 		this._lastError = null;
@@ -214,7 +219,6 @@ export class SpatialHash<ItemT> implements DataStructure<ItemT> {
 		}
 
 		if (!this.grid.locate(item)) {
-			this.grid.remove(node);
 			return this.refuse('invalid_position');
 		}
 

@@ -413,21 +413,27 @@ describe('QuadTree', () => {
 			expectValid(tree);
 		});
 
-		it('removes the node when the new position is invalid', () => {
-			const node = tree.insert({x: 1, y: 1}) as QuadTreeElement<Pt>;
+		it('refuses an invalid position and changes nothing', () => {
+			const item = {x: 1, y: 1};
+			const node = tree.insert(item) as QuadTreeElement<Pt>;
 
 			expect(tree.update(node, {x: NaN, y: 1})).toBeNull();
 			expect(tree.lastError()).toBe('invalid_position');
-			expect(tree.size()).toBe(0);
+			expect(tree.size()).toBe(1);
+			expect(node.value()).toBe(item);
+			expect(tree.find(item)).toBe(node);
 		});
 
-		it('removes the node when it would duplicate and duplicates are not allowed', () => {
+		it('refuses a duplicate position when duplicates are not allowed and changes nothing', () => {
 			const unique = new QuadTree<Pt>(byPoint, [{x: 1, y: 1}], {allowDuplicates: false});
-			const node = unique.insert({x: 2, y: 2}) as QuadTreeElement<Pt>;
+			const item = {x: 2, y: 2};
+			const node = unique.insert(item) as QuadTreeElement<Pt>;
 
 			expect(unique.update(node, {x: 1, y: 1})).toBeNull();
 			expect(unique.lastError()).toBe('duplicate_not_allowed');
-			expect(unique.size()).toBe(1);
+			expect(unique.size()).toBe(2);
+			expect(node.value()).toBe(item);
+			expect([node.x(), node.y()]).toEqual([2, 2]);
 			expectValid(unique);
 		});
 
@@ -1006,22 +1012,27 @@ describe('QuadTree', () => {
 				expectScratchClean(unique);
 			});
 
-			it('update to an occupied position deep in the tree removes the node', () => {
+			it('update to an occupied position deep in the tree is refused and keeps the node', () => {
 				const unique = new QuadTree<Pt>(byPoint, [], {allowDuplicates: false});
 				unique.insertArray(randomPoints(300, 36));
 				const nodes = unique.toArray();
 				const deepest = nodes.reduce((a, b) => (unique.depth(b)! > unique.depth(a)! ? b : a));
 				const mover = nodes[0];
 				const item = mover.value()!;
+				const from = {x: item.x, y: item.y};
 				item.x = deepest.x();
 				item.y = deepest.y();
 				const size = unique.size();
 
 				expect(unique.update(mover, item)).toBeNull();
 				expect(unique.lastError()).toBe('duplicate_not_allowed');
-				expect(unique.size()).toBe(size - 1);
-				expect(mover._tree).toBeNull();
+				expect(unique.size()).toBe(size);
+				expect(mover._tree).toBe(unique);
 				expect(unique.find({x: item.x, y: item.y})).toBe(deepest);
+
+				// The refusal leaves the item's position for the caller to restore.
+				Object.assign(item, from);
+				expect(unique.find(from)).toBe(mover);
 				expectValid(unique);
 			});
 

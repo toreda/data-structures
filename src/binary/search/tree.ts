@@ -233,12 +233,17 @@ export class BinarySearchTree<ItemT> implements Tree<ItemT, BinarySearchTreeElem
 	 * released or reallocated, so it stays valid, and query results that
 	 * matched it can still `delete()` it.
 	 *
-	 * @returns		node, now holding item, or null when it was refused.
-	 * 				`lastError()` then gives the reason: `duplicate_not_allowed`
-	 * 				when item now compares equal to another item and duplicates
-	 * 				are not allowed: node is removed and item is no longer in the
-	 * 				tree. `node_not_in_tree` when node is null or not part of
-	 * 				this tree; nothing changes then.
+	 * @remarks
+	 * A refused update changes nothing: node keeps its item and position. When
+	 * item was changed in place, it no longer matches node's position, so
+	 * restore it or remove node with `removeNode()`, which works by structure
+	 * rather than by searching.
+	 *
+	 * @returns		node, now holding item, or null when it was refused and
+	 * 				nothing changed. `lastError()` then gives the reason:
+	 * 				`duplicate_not_allowed` when item compares equal to another
+	 * 				item and duplicates are not allowed, or `node_not_in_tree`
+	 * 				when node is null or not part of this tree.
 	 */
 	public update(
 		node: BinarySearchTreeElement<ItemT> | null,
@@ -250,25 +255,28 @@ export class BinarySearchTree<ItemT> implements Tree<ItemT, BinarySearchTreeElem
 			return this.refuse('node_not_in_tree');
 		}
 
+		const previous = node._value;
 		node._value = item;
 
-		if (!this.positionValid(node)) {
-			this.detach(node);
-
-			if (!this.findSlot(item)) {
-				this._size--;
-				this.drop(node);
+		if (this.positionValid(node)) {
+			// Item still fits here, so only an in-order neighbor can equal it.
+			if (!this.allowDuplicates && this.hasEqualNeighbor(node)) {
+				node._value = previous;
 				return this.refuse('duplicate_not_allowed');
 			}
 
-			this.linkAtSlot(node);
 			return node;
 		}
 
-		if (!this.allowDuplicates && this.hasEqualNeighbor(node)) {
-			this.removeNode(node);
+		if (!this.allowDuplicates && this.hasOtherEqual(item, node)) {
+			node._value = previous;
 			return this.refuse('duplicate_not_allowed');
 		}
+
+		// Duplicates were ruled out above, so a slot is always found.
+		this.detach(node);
+		this.findSlot(item);
+		this.linkAtSlot(node);
 
 		return node;
 	}
@@ -969,6 +977,45 @@ export class BinarySearchTree<ItemT> implements Tree<ItemT, BinarySearchTreeElem
 			(prev !== null && this.comparator(prev._value as ItemT, value) === 0) ||
 			(next !== null && this.comparator(next._value as ItemT, value) === 0)
 		);
+	}
+
+	/**
+	 * True when a node other than skip holds an item comparing equal to item.
+	 * skip's own item is never compared, since it may have been changed in
+	 * place and no longer match skip's position. Only called when duplicates
+	 * are not allowed, so at most one other node can match. Takes O(h).
+	 */
+	private hasOtherEqual(item: ItemT, skip: BinarySearchTreeElement<ItemT>): boolean {
+		return this.subtreeHasEqual(this._root, item, skip);
+	}
+
+	private subtreeHasEqual(
+		start: BinarySearchTreeElement<ItemT> | null,
+		item: ItemT,
+		skip: BinarySearchTreeElement<ItemT>
+	): boolean {
+		let curr = start;
+
+		while (curr) {
+			if (curr === skip) {
+				// Both subtrees are ordered, but skip's item cannot pick between
+				// them, so search each.
+				return (
+					this.subtreeHasEqual(curr._left, item, skip) ||
+					this.subtreeHasEqual(curr._right, item, skip)
+				);
+			}
+
+			const order = this.comparator(item, curr._value as ItemT);
+
+			if (order === 0) {
+				return true;
+			}
+
+			curr = order < 0 ? curr._left : curr._right;
+		}
+
+		return false;
 	}
 
 	private subtreeMin(node: BinarySearchTreeElement<ItemT>): BinarySearchTreeElement<ItemT> {

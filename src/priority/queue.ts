@@ -177,7 +177,8 @@ export class PriorityQueue<ItemT> implements DataStructure<ItemT> {
 	 * @param func		Called with (element, index, queue) in heap array order, where
 	 * 					queue is this queue. Don't push, pop, or delete from it
 	 * 					inside func.
-	 * @param thisArg	Value used as `this` when calling func. Defaults to this queue.
+	 * @param thisArg	Value used as `this` when calling func, as passed. Like
+	 * 					`Array.prototype.filter`, `this` is undefined when omitted.
 	 */
 	public filter(func: PriorityQueueMethod<ItemT, boolean>, thisArg?: unknown): PriorityQueue<ItemT> {
 		return this.filterInto(
@@ -205,7 +206,6 @@ export class PriorityQueue<ItemT> implements DataStructure<ItemT> {
 		func: PriorityQueueMethod<ItemT, boolean>,
 		thisArg?: unknown
 	): Q {
-		const boundThis = thisArg === undefined ? this : thisArg;
 		const elements = this._elements as ItemT[];
 		const out = target._elements;
 		let count = 0;
@@ -213,7 +213,7 @@ export class PriorityQueue<ItemT> implements DataStructure<ItemT> {
 		for (let i = 0; i < this._size; i++) {
 			const element = elements[i];
 
-			if (func.call(boundThis, element, i, this)) {
+			if (func.call(thisArg, element, i, this)) {
 				out[count++] = element;
 			}
 		}
@@ -229,14 +229,14 @@ export class PriorityQueue<ItemT> implements DataStructure<ItemT> {
 	 * Allocates nothing.
 	 * @param func		Called with (element, index, queue) where queue is this
 	 * 					queue. Don't push, pop, or delete from it inside func.
-	 * @param thisArg	Value used as `this` when calling func. Defaults to this queue.
+	 * @param thisArg	Value used as `this` when calling func, as passed. Like
+	 * 					`Array.prototype.forEach`, `this` is undefined when omitted.
 	 */
 	public forEach(func: PriorityQueueMethod<ItemT, void>, thisArg?: unknown): PriorityQueue<ItemT> {
-		const boundThis = thisArg === undefined ? this : thisArg;
 		const elements = this._elements as ItemT[];
 
 		for (let i = 0; i < this._size; i++) {
-			func.call(boundThis, elements[i], i, this);
+			func.call(thisArg, elements[i], i, this);
 		}
 
 		return this;

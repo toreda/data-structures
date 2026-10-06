@@ -273,7 +273,7 @@ describe('Queue', () => {
 			expect(seen).toEqual(q.values().map((v, i) => [v, i]));
 		});
 
-		it('forEach uses thisArg, defaulting to the queue', () => {
+		it('forEach uses thisArg as passed, undefined when omitted', () => {
 			const context = {};
 			const received: unknown[] = [];
 			instance.forEach(function (this: unknown) {
@@ -284,7 +284,7 @@ describe('Queue', () => {
 			instance.forEach(function (this: unknown) {
 				received.push(this);
 			});
-			expect(received[received.length - 1]).toBe(instance);
+			expect(received[received.length - 1]).toBeUndefined();
 
 			instance.forEach(function (this: unknown) {
 				received.push(this);

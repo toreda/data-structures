@@ -63,7 +63,7 @@ describe('ObjectPool', () => {
 
 			expect(JSON.parse(source.stringify())).toEqual({
 				type: 'ObjectPool',
-				autoIncrease: false,
+				autoIncrease: true,
 				increaseBreakPoint: 1,
 				increaseFactor: 99,
 				instanceArgs: [],
@@ -80,24 +80,83 @@ describe('ObjectPool', () => {
 			expect(result.state.objectCount).toBe(1);
 		});
 
-		it('invalid', () => {
-			expect(() => {
-				const result = new ObjectPool(null as any);
-				console.log(result);
-			}).toThrow();
+		it('throws a single Error without a class constructor', () => {
+			let thrown: unknown = null;
 
-			expect(() => {
-				const options: Required<ObjectPoolOptions> = {
-					autoIncrease: 2 as any,
-					increaseFactor: 0.7 as any,
-					increaseBreakPoint: 1.5,
-					maxSize: '0' as any,
-					startSize: '100' as any,
-					instanceArgs: {} as any
-				};
-				const result = new ObjectPool(objectClass, options);
-				console.log(result);
-			}).toThrow();
+			try {
+				new ObjectPool(null as any);
+			} catch (error) {
+				thrown = error;
+			}
+
+			expect(thrown).toBeInstanceOf(Error);
+		});
+
+		it('falls back to the default for each invalid option instead of throwing', () => {
+			const options: Required<ObjectPoolOptions> = {
+				autoIncrease: 2 as any,
+				increaseFactor: 0.7 as any,
+				increaseBreakPoint: 1.5,
+				maxSize: '0' as any,
+				startSize: '100' as any,
+				instanceArgs: {} as any
+			};
+			const defaults = new ObjectPool(objectClass).state;
+			const result = new ObjectPool(objectClass, options);
+
+			expect(result.state.autoIncrease).toBe(defaults.autoIncrease);
+			expect(result.state.increaseFactor).toBe(defaults.increaseFactor);
+			expect(result.state.increaseBreakPoint).toBe(defaults.increaseBreakPoint);
+			expect(result.state.maxSize).toBe(defaults.maxSize);
+			expect(result.state.startSize).toBe(defaults.startSize);
+			expect(result.state.instanceArgs).toEqual([]);
+			expect(new ObjectPool(objectClass, null).size()).toBe(0);
+			expect(new ObjectPool(objectClass, 'nope' as any).state.startSize).toBe(1);
+		});
+
+		it('keeps valid options next to invalid ones', () => {
+			const result = new ObjectPool(objectClass, {maxSize: 5, startSize: -1, increaseFactor: 3});
+
+			expect(result.state.maxSize).toBe(5);
+			expect(result.state.startSize).toBe(1);
+			expect(result.state.increaseFactor).toBe(3);
+		});
+
+		it('isEmpty is true only while no object is in use', () => {
+			const pool = new ObjectPool(objectClass, {startSize: 2});
+
+			expect(pool.isEmpty()).toBe(true);
+			const object = pool.allocate();
+			expect(pool.isEmpty()).toBe(false);
+			pool.release(object!);
+			expect(pool.isEmpty()).toBe(true);
+		});
+
+		it('grows on demand by default, so a default pool hands out more than one object', () => {
+			const pool = new ObjectPool(objectClass);
+			const first = pool.allocate();
+			const second = pool.allocate();
+			const third = pool.allocate();
+
+			expect(first).toBeInstanceOf(objectClass);
+			expect(second).toBeInstanceOf(objectClass);
+			expect(third).toBeInstanceOf(objectClass);
+			expect(new Set([first, second, third]).size).toBe(3);
+		});
+
+		it('stops at maxSize by default', () => {
+			const pool = new ObjectPool(objectClass, {maxSize: 2});
+
+			expect(pool.allocate()).not.toBeNull();
+			expect(pool.allocate()).not.toBeNull();
+			expect(pool.allocate()).toBeNull();
+		});
+
+		it('does not grow with autoIncrease off', () => {
+			const pool = new ObjectPool(objectClass, {autoIncrease: false});
+
+			expect(pool.allocate()).not.toBeNull();
+			expect(pool.allocate()).toBeNull();
 		});
 	});
 
@@ -342,6 +401,32 @@ describe('ObjectPool', () => {
 			}, instance);
 			expect(after).toHaveLength(list.length);
 			expect(new Set(after)).toEqual(new Set(list));
+		});
+
+		it('forEach and map use thisArg as passed, falsy values included, and undefined when omitted', () => {
+			const pool = new ObjectPool(objectClass, {startSize: 1});
+			pool.allocate();
+
+			for (const thisArg of [0, '', false, null]) {
+				const seen: unknown[] = [];
+				pool.forEach(function (this: unknown) {
+					seen.push(this);
+				}, thisArg);
+				pool.map(function (this: unknown) {
+					seen.push(this);
+				}, thisArg);
+
+				expect(seen).toEqual([thisArg, thisArg]);
+			}
+
+			const defaults: unknown[] = [];
+			pool.forEach(function (this: unknown) {
+				defaults.push(this);
+			});
+			pool.map(function (this: unknown) {
+				defaults.push(this);
+			}, undefined);
+			expect(defaults).toEqual([undefined, undefined]);
 		});
 
 		it('map', () => {

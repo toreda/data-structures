@@ -557,12 +557,15 @@ describe('Trie', () => {
 			expectValid(entries);
 		});
 
-		it('removes the item when the new key is invalid', () => {
+		it('refuses an invalid key and changes nothing', () => {
 			const entries = new Trie<any>(byWord, ['a', 'b']);
+			const node = entries.find('a')!;
 
-			expect(entries.update(entries.find('a'), 5)).toBeNull();
+			expect(entries.update(node, 5)).toBeNull();
 			expect(entries.lastError()).toBe('invalid_key');
-			expect(entries.keys()).toEqual(['b']);
+			expect(entries.keys()).toEqual(['a', 'b']);
+			expect(node.value()).toBe('a');
+			expect(entries.find('a')).toBe(node);
 			expectValid(entries);
 		});
 

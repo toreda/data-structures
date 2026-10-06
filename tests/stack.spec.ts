@@ -203,7 +203,7 @@ describe('Stack', () => {
 			}
 		});
 
-		it('forEach defaults this to the stack', () => {
+		it('forEach leaves this undefined when thisArg is omitted', () => {
 			const seen: unknown[] = [];
 
 			instance.forEach(function (this: unknown) {
@@ -211,7 +211,7 @@ describe('Stack', () => {
 			});
 
 			expect(seen.length).toBe(instance.size());
-			expect(seen.every((ctx) => ctx === instance)).toBe(true);
+			expect(seen.every((ctx) => ctx === undefined)).toBe(true);
 		});
 
 		it('forEach uses thisArg', () => {

@@ -155,9 +155,9 @@ Use for bullets, particles, enemies, pickups, floating damage numbers, pooled th
 
 * `allocate()` and `release()` are O(1) and allocate nothing. Each in-use object remembers its slot, and a release moves the last in-use object into the freed slot, so it never searches or compacts.
 * Releasing an object twice, or one this pool never handed out, is ignored and `release()` returns `false`. Two callers can never be handed the same object.
-* `startSize` creates every object during loading. `autoIncrease` is off by default, so the pool never grows mid-frame.
+* Set `startSize` and `maxSize` to the same value and every object is created during loading, so the pool never grows mid-frame.
 * When the pool is exhausted, `allocate()` returns `null` instead of throwing or allocating. You choose to skip the spawn, and memory stays bounded by `maxSize`.
-* To grow instead, turn on `autoIncrease`. The pool then grows by `increaseFactor` once use passes `increaseBreakPoint`.
+* Below `maxSize` the pool grows on demand by `increaseFactor` once use passes `increaseBreakPoint`. Set `autoIncrease: false` to keep it at `startSize`.
 * `release()` calls your `cleanObj()`, so a reused object never carries state from its last use.
 
 ```typescript
@@ -503,6 +503,9 @@ Every collection is generic over its item type and implements the `DataStructure
 
 ```typescript
 interface DataStructure<ItemT> {
+	[Symbol.iterator](): Iterator<ItemT>;
+	size(): number;
+	isEmpty(): boolean;
 	clearElements(): void;
 	reset(): void;
 	stringify(): string | null;
@@ -665,6 +668,8 @@ for (let node = leaderboard.max(); node; node = leaderboard.predecessor(node)) {
 
 The tree cannot see changes made to an item after it was inserted. After changing a field the comparator reads, call `update(node, item)`. When the item still belongs where its node sits, nothing moves. Otherwise the same node is unlinked and relinked where the item now belongs, without going through the node pool. Either way the same node is returned, and query results that point at it stay valid.
 
+Every collection with `update()` refuses a bad update without changing anything: the node keeps its item and position, and `update()` returns `null` with the reason in `lastError()`. When the item was changed in place, it no longer matches the node, so restore it or remove the node with `removeNode()`.
+
 ```typescript
 const node = leaderboard.find({name: '', score: 90})!; // node holding ben
 
@@ -718,10 +723,10 @@ if (node === null) {
 unique.insert(4)?.value(); // returns 4
 
 // update() also returns null when the new item equals another item.
-// The node is removed in that case, so the item is no longer in the tree.
+// A refused update changes nothing: the node keeps 4.
 unique.update(unique.find(4), 8); // returns null
 unique.lastError(); // returns 'duplicate_not_allowed'
-unique.values(); // returns [3, 5, 8]
+unique.values(); // returns [3, 4, 5, 8]
 ```
 
 ### Filter, query, and serialize
@@ -1253,7 +1258,7 @@ const myTunedLinkedList = new LinkedList<string>([], {pool: {startSize: 64, maxS
 
 Pool of reusable object instances. Objects are created up front and handed out by `allocate()`, and `release()` cleans them with `cleanObj()` and stores them for reuse.
 
-Default options: `startSize: 1`, `maxSize: 1000`, `autoIncrease: false`, `increaseBreakPoint: 1`, `increaseFactor: 2`. With `autoIncrease` on, the pool grows by `increaseFactor` once the share of objects in use would pass `increaseBreakPoint`, up to `maxSize`.
+Default options: `startSize: 1`, `maxSize: 1000`, `autoIncrease: true`, `increaseBreakPoint: 1`, `increaseFactor: 2`. With `autoIncrease` on, the pool grows by `increaseFactor` once the share of objects in use would pass `increaseBreakPoint`, up to `maxSize`; with it off, `allocate()` returns `null` once the objects built so far are all in use. An invalid option falls back to its default and never throws.
 
 ### Defining a pooled class
 
@@ -1285,7 +1290,7 @@ class ObjectClass implements ObjectPoolInstance {
 // Instantiate. The class constructor is required and throws when it is not a function.
 const objectPoolDefault = new ObjectPool<ObjectClass>(ObjectClass);
 objectPoolDefault.allocate(); // returns an ObjectClass instance
-objectPoolDefault.allocate(); // returns null: default pool holds 1 object and does not grow
+objectPoolDefault.allocate(); // returns another instance: the pool grows on demand, up to maxSize
 
 const objectPool = new ObjectPool<ObjectClass>(ObjectClass, {
 	startSize: 100,

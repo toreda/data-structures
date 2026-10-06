@@ -245,20 +245,18 @@ export class SpatialMap<ItemT> implements DataStructure<ItemT> {
 	 * removed first. node keeps its place in insertion order.
 	 *
 	 * @remarks
-	 * A move refused with `cell_occupied` changes nothing, so the refusal
-	 * works as a collision check. node keeps its old item and position. When
+	 * A refused update changes nothing, so a `cell_occupied` refusal works as
+	 * a collision check. node keeps its old item and position. When
 	 * item was changed in place, its locator now disagrees with node, so
 	 * either restore its position or remove it with `removeNode()`, since
 	 * `remove()` searches by the locator's position.
 	 *
-	 * @returns		node, which now holds item, or null when it was refused.
-	 * 				`lastError()` then gives the reason: `invalid_position` when
-	 * 				the locator does not return finite x, y, and z coordinates in
-	 * 				range for item: node is removed then and item is no longer
-	 * 				in the map. `cell_occupied` when another item holds the
-	 * 				target cell and `overwrite` is off: nothing changes.
-	 * 				`node_not_in_map` when node is null or not part of this map;
-	 * 				nothing changes then.
+	 * @returns		node, which now holds item, or null when it was refused and
+	 * 				nothing changed. `lastError()` then gives the reason:
+	 * 				`invalid_position` when the locator does not return finite x,
+	 * 				y, and z coordinates in range for item, `cell_occupied` when
+	 * 				another item holds the target cell and `overwrite` is off, or
+	 * 				`node_not_in_map` when node is null or not part of this map.
 	 */
 	public update(node: SpatialElement<ItemT> | null, item: ItemT): SpatialElement<ItemT> | null {
 		this._lastError = null;
@@ -268,7 +266,6 @@ export class SpatialMap<ItemT> implements DataStructure<ItemT> {
 		}
 
 		if (!this.grid.locate(item)) {
-			this.grid.remove(node);
 			return this.refuse('invalid_position');
 		}
 

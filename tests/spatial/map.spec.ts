@@ -276,12 +276,15 @@ describe('SpatialMap', () => {
 			expectValid(target, 1);
 		});
 
-		it('removes the element when the new position is invalid', () => {
-			const node = map.insert({x: 0, y: 0, z: 0}) as SpatialElement<Pt>;
+		it('refuses an invalid position and changes nothing', () => {
+			const item = {x: 0, y: 0, z: 0};
+			const node = map.insert(item) as SpatialElement<Pt>;
 
 			expect(map.update(node, {x: 0, y: NaN, z: 0})).toBeNull();
 			expect(map.lastError()).toBe('invalid_position');
-			expect(map.size()).toBe(0);
+			expect(map.size()).toBe(1);
+			expect(node.value()).toBe(item);
+			expect(map.findCell(0, 0, 0)).toBe(node);
 		});
 
 		it('returns null for null or foreign elements', () => {

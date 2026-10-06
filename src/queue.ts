@@ -191,8 +191,8 @@ export class Queue<ItemT> implements DataStructure<ItemT> {
 	 * Create a new queue containing only the items for which func returns
 	 * true, in queue order.
 	 * @param func		Called with (item, index, queue) from front to rear.
-	 * @param thisArg	Value used as `this` when calling func. Defaults to this
-	 * 					queue when omitted.
+	 * @param thisArg	Value used as `this` when calling func, as passed. Like
+	 * 					`Array.prototype.filter`, `this` is undefined when omitted.
 	 */
 	public filter(func: QueueMethod<ItemT, boolean>, thisArg?: unknown): Queue<ItemT> {
 		const result = new Queue<ItemT>(null, this.options());
@@ -214,12 +214,10 @@ export class Queue<ItemT> implements DataStructure<ItemT> {
 	 * Subclasses build their own `filter()` result with this.
 	 */
 	protected filterInto(target: Queue<ItemT>, func: QueueMethod<ItemT, boolean>, thisArg?: unknown): void {
-		const boundThis = thisArg === undefined ? this : thisArg;
-
 		for (let i = 0; i < this._size; i++) {
 			const item = this._elements[this.slot(i)] as ItemT;
 
-			if (func.call(boundThis, item, i, this)) {
+			if (func.call(thisArg, item, i, this)) {
 				target.push(item);
 			}
 		}
@@ -237,14 +235,12 @@ export class Queue<ItemT> implements DataStructure<ItemT> {
 	 * shifts which items are visited.
 	 *
 	 * @param func		Called with (item, index, queue) from front to rear.
-	 * @param thisArg	Value used as `this` when calling func. Defaults to this
-	 * 					queue when omitted.
+	 * @param thisArg	Value used as `this` when calling func, as passed. Like
+	 * 					`Array.prototype.forEach`, `this` is undefined when omitted.
 	 */
 	public forEach(func: QueueMethod<ItemT, void>, thisArg?: unknown): Queue<ItemT> {
-		const boundThis = thisArg === undefined ? this : thisArg;
-
 		for (let i = 0; i < this._size; i++) {
-			func.call(boundThis, this._elements[this.slot(i)] as ItemT, i, this);
+			func.call(thisArg, this._elements[this.slot(i)] as ItemT, i, this);
 		}
 
 		return this;

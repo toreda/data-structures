@@ -688,16 +688,46 @@ describe('RedBlackTree', () => {
 			expectValid(keyed);
 		});
 
-		it('when duplicates are disabled, removes an item that now equals another', () => {
+		it('when duplicates are disabled, refuses an item equal to another and changes nothing', () => {
 			const unique = new RedBlackTree<number>(byNumber, [50, 30, 70], {allowDuplicates: false});
+			const node30 = unique.find(30)!;
+			const node70 = unique.find(70)!;
 
-			expect(unique.update(unique.find(30), 70)).toBeNull();
+			expect(unique.update(node30, 70)).toBeNull();
 			expect(unique.lastError()).toBe('duplicate_not_allowed');
-			expect(unique.values()).toEqual([50, 70]);
-			expect(unique.update(unique.find(70), 50)).toBeNull();
+			expect(node30.value()).toBe(30);
+			expect(unique.update(node70, 50)).toBeNull();
 			expect(unique.lastError()).toBe('duplicate_not_allowed');
-			expect(unique.values()).toEqual([50]);
+			expect(node70.value()).toBe(70);
+			expect(unique.values()).toEqual([30, 50, 70]);
+			expect(unique.find(30)).toBe(node30);
 			expectValid(unique);
+		});
+
+		it('when duplicates are disabled, refuses an item changed in place to equal another', () => {
+			type Keyed = {k: number};
+			const byKey = (a: Keyed, b: Keyed): number => a.k - b.k;
+
+			// The equal item sits in the moved node's right subtree, then its left,
+			// so the duplicate search must look past the node's own item.
+			for (const to of [45, 20]) {
+				const items = [50, 30, 70, 20, 40, 45].map((k) => ({k}));
+				const unique = new RedBlackTree<Keyed>(byKey, items, {allowDuplicates: false});
+				const item = items[1];
+				const node = unique.find(item)!;
+
+				item.k = to;
+				expect(unique.update(node, item)).toBeNull();
+				expect(unique.lastError()).toBe('duplicate_not_allowed');
+				expect(node._tree).toBe(unique);
+				expect(unique.size()).toBe(6);
+
+				item.k = 30;
+				expect(unique.update(node, item)).toBe(node);
+				expectValid(unique);
+				expect(unique.removeNode(node)).toBe(item);
+				expectValid(unique);
+			}
 		});
 
 		it('compares against each neighbor only once when the item stays in place', () => {
@@ -797,9 +827,8 @@ describe('RedBlackTree', () => {
 					if (result === null) {
 						expect(numbers.lastError()).toBe('duplicate_not_allowed');
 						expect(allowDuplicates).toBe(false);
-						expect(node._tree).toBeNull();
-						nodes.splice(index, 1);
-						linkIds.splice(index, 1);
+						expect(node._tree).toBe(numbers);
+						expect(node.value()).not.toBe(to);
 					} else {
 						expect(result).toBe(node);
 						expect(node._linkId).toBe(linkIds[index]);
@@ -842,20 +871,21 @@ describe('RedBlackTree', () => {
 			expectValid(plain);
 		});
 
-		it('moving into a duplicate when duplicates are disabled drops and recycles the node', () => {
+		it('moving into a duplicate when duplicates are disabled keeps the node', () => {
 			const unique = new RedBlackTree<number>(byNumber, [50, 30, 70, 20], {allowDuplicates: false});
 			const node = unique.find(20)!;
+			const linkId = node._linkId;
 
 			expect(unique.update(node, 70)).toBeNull();
 			expect(unique.lastError()).toBe('duplicate_not_allowed');
-			expect(node._tree).toBeNull();
-			expect(unique.size()).toBe(3);
-			expect(poolOf(unique)!.size()).toBe(3);
-			expect(unique.insert(10)).toBe(node);
+			expect(node._tree).toBe(unique);
+			expect(node._linkId).toBe(linkId);
+			expect(unique.size()).toBe(4);
+			expect(unique.find(20)).toBe(node);
 			expectValid(unique);
 		});
 
-		it('blanks a node dropped by a duplicate-rejected move with pooling disabled', () => {
+		it('keeps the node in place after a duplicate-rejected move with pooling disabled', () => {
 			const plain = new RedBlackTree<number>(byNumber, [50, 30, 70, 20], {
 				allowDuplicates: false,
 				disableElementPooling: true
@@ -864,9 +894,9 @@ describe('RedBlackTree', () => {
 
 			expect(plain.update(node, 70)).toBeNull();
 			expect(plain.lastError()).toBe('duplicate_not_allowed');
-			expect(node.value()).toBeNull();
-			expect(node._tree).toBeNull();
-			expect(plain.values()).toEqual([30, 50, 70]);
+			expect(node.value()).toBe(20);
+			expect(node._tree).toBe(plain);
+			expect(plain.values()).toEqual([20, 30, 50, 70]);
 			expectValid(plain);
 		});
 

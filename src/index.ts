@@ -64,7 +64,6 @@ export type {LinkedListOptions} from './linked/list/options';
 
 export type {Iterator} from './iterator';
 export type {IterableType} from './iterable/type';
-export {iterableMakeType} from './iterable/helpers';
 
 // Object Pool
 export {ObjectPool} from './object/pool';
@@ -182,10 +181,6 @@ export {trieValueOf} from './trie/value/of';
 export type {QueryFilter} from './query/filter';
 export type {QueryOptions} from './query/options';
 export type {QueryResult} from './query/result';
-
-// Callable
-export type {QueueCallableSync} from './queue/callable/sync';
-export type {QueueCallable} from './queue/callable';
 
 // Validation Helpers
 export {booleanValue} from './boolean/value';

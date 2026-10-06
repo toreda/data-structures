@@ -296,17 +296,24 @@ describe('OctTree', () => {
 			expectValid(tree);
 		});
 
-		it('update removes the node on an invalid or duplicate position', () => {
-			const node = tree.insert({x: 1, y: 1, z: 1}) as OctTreeElement<Pt>;
+		it('update refuses an invalid or duplicate position and changes nothing', () => {
+			const item = {x: 1, y: 1, z: 1};
+			const node = tree.insert(item) as OctTreeElement<Pt>;
 			expect(tree.update(node, {x: 1, y: 1, z: NaN})).toBeNull();
 			expect(tree.lastError()).toBe('invalid_position');
-			expect(tree.size()).toBe(0);
+			expect(tree.size()).toBe(1);
+			expect(node.value()).toBe(item);
+			expect(tree.find(item)).toBe(node);
 
 			const unique = new OctTree<Pt>(byPoint, [{x: 1, y: 1, z: 1}], {allowDuplicates: false});
-			const other = unique.insert({x: 2, y: 2, z: 2}) as OctTreeElement<Pt>;
+			const otherItem = {x: 2, y: 2, z: 2};
+			const other = unique.insert(otherItem) as OctTreeElement<Pt>;
 			expect(unique.update(other, {x: 1, y: 1, z: 1})).toBeNull();
 			expect(unique.lastError()).toBe('duplicate_not_allowed');
-			expect(unique.size()).toBe(1);
+			expect(unique.size()).toBe(2);
+			expect(other.value()).toBe(otherItem);
+			expect([other.x(), other.y(), other.z()]).toEqual([2, 2, 2]);
+			expectValid(unique);
 			expect(unique.update(null, {x: 1, y: 1, z: 1})).toBeNull();
 			expect(unique.lastError()).toBe('node_not_in_tree');
 		});
@@ -724,12 +731,13 @@ describe('OctTree', () => {
 				expectScratchClean(unique);
 			});
 
-			it('update to an occupied position deep in the tree removes the node', () => {
+			it('update to an occupied position deep in the tree is refused and keeps the node', () => {
 				const unique = new OctTree<Pt>(byPoint, [], {allowDuplicates: false});
 				unique.insertArray(randomPoints(300, 36));
 				const deepest = deepestOf(unique);
 				const mover = unique.root()!;
 				const item = mover.value()!;
+				const from = {x: item.x, y: item.y, z: item.z};
 				item.x = deepest.x();
 				item.y = deepest.y();
 				item.z = deepest.z();
@@ -737,9 +745,13 @@ describe('OctTree', () => {
 
 				expect(unique.update(mover, item)).toBeNull();
 				expect(unique.lastError()).toBe('duplicate_not_allowed');
-				expect(unique.size()).toBe(size - 1);
-				expect(mover._tree).toBeNull();
+				expect(unique.size()).toBe(size);
+				expect(mover._tree).toBe(unique);
+				expect(unique.root()).toBe(mover);
 				expect(unique.find(item)).toBe(deepest);
+
+				// The refusal leaves the item's position for the caller to restore.
+				Object.assign(item, from);
 				expectValid(unique);
 			});
 

@@ -293,6 +293,25 @@ describe('PriorityQueue', () => {
 			expect(seen).toEqual([queue, queue, queue]);
 		});
 
+		it('forEach and filter use thisArg as passed, undefined when omitted', () => {
+			const queue = new PriorityQueue<number>((a, b) => a - b, [2, 1]);
+			const context = {};
+			const seen: unknown[] = [];
+			const record = function (this: unknown): boolean {
+				seen.push(this);
+				return true;
+			};
+
+			queue.forEach(record);
+			queue.filter(record);
+			expect(seen).toEqual([undefined, undefined, undefined, undefined]);
+
+			seen.length = 0;
+			queue.forEach(record, context);
+			queue.filter(record, 0);
+			expect(seen).toEqual([context, context, 0, 0]);
+		});
+
 		it('forEach does not call Array.prototype.forEach', () => {
 			loadQueue(instance);
 			const spy = jest.spyOn(Array.prototype, 'forEach');

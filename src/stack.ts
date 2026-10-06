@@ -184,7 +184,8 @@ export class Stack<ItemT> implements DataStructure<ItemT> {
 	 * Elements are visited top to bottom and keep their relative order in the new stack.
 	 * @param func		Called with (element, index, stack) where index 0 is the top of the
 	 * 					stack and stack is this stack.
-	 * @param thisArg	Value used as `this` when calling func. Defaults to this stack.
+	 * @param thisArg	Value used as `this` when calling func, as passed. Like
+	 * 					`Array.prototype.filter`, `this` is undefined when omitted.
 	 * @returns			New stack containing the matching elements.
 	 */
 	public filter(func: StackMethod<ItemT, boolean>, thisArg?: unknown): Stack<ItemT> {
@@ -209,7 +210,6 @@ export class Stack<ItemT> implements DataStructure<ItemT> {
 		func: StackMethod<ItemT, boolean>,
 		thisArg?: unknown
 	): S {
-		const boundThis = thisArg === undefined ? this : thisArg;
 		const elements = this._elements;
 		const out = target._elements;
 		let count = 0;
@@ -219,7 +219,7 @@ export class Stack<ItemT> implements DataStructure<ItemT> {
 		for (let i = this._size - 1, idx = 0; i >= 0; i--, idx++) {
 			const element = elements[i] as ItemT;
 
-			if (func.call(boundThis, element, idx, this)) {
+			if (func.call(thisArg, element, idx, this)) {
 				out[count++] = element;
 			}
 		}
@@ -240,15 +240,15 @@ export class Stack<ItemT> implements DataStructure<ItemT> {
 	 * positional access. Pushing or popping during the walk is not supported.
 	 *
 	 * @param func		Called with (element, index, stack) where index 0 is the top of the stack.
-	 * @param thisArg	Value used as `this` when calling func. Defaults to this stack.
+	 * @param thisArg	Value used as `this` when calling func, as passed. Like
+	 * 					`Array.prototype.forEach`, `this` is undefined when omitted.
 	 * @returns			This stack.
 	 */
 	public forEach(func: StackMethod<ItemT, void>, thisArg?: unknown): Stack<ItemT> {
-		const boundThis = thisArg === undefined ? this : thisArg;
 		const elements = this._elements;
 
 		for (let i = this._size - 1, idx = 0; i >= 0; i--, idx++) {
-			func.call(boundThis, elements[i] as ItemT, idx, this);
+			func.call(thisArg, elements[i] as ItemT, idx, this);
 		}
 
 		return this;

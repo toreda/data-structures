@@ -255,12 +255,15 @@ describe('SpatialHash', () => {
 			expectValid(hash);
 		});
 
-		it('removes the element when the new position is invalid', () => {
-			const node = hash.insert({x: 1, y: 1, z: 1}) as SpatialElement<Pt>;
+		it('refuses an invalid position and changes nothing', () => {
+			const item = {x: 1, y: 1, z: 1};
+			const node = hash.insert(item) as SpatialElement<Pt>;
 
 			expect(hash.update(node, {x: NaN, y: 0, z: 0})).toBeNull();
 			expect(hash.lastError()).toBe('invalid_position');
-			expect(hash.size()).toBe(0);
+			expect(hash.size()).toBe(1);
+			expect(node.value()).toBe(item);
+			expect(hash.find(item)).toBe(node);
 			expectValid(hash);
 		});
 

@@ -1,4 +1,5 @@
 import {type Element} from '../element';
+import {type Iterator} from '../iterator';
 import {type QueryFilter} from '../query/filter';
 import {type QueryOptions} from '../query/options';
 import {type QueryResult} from '../query/result';
@@ -11,6 +12,15 @@ import {type QueryResult} from '../query/result';
  * @category Base
  */
 export interface DataStructure<ItemT> {
+	/**
+	 * Iterate the items, so `for...of` and spread work on any collection. Each
+	 * collection documents its order.
+	 */
+	[Symbol.iterator](): Iterator<ItemT>;
+	/** Number of items held. For `ObjectPool`, the number of objects in use. */
+	size(): number;
+	/** True when `size()` is 0. */
+	isEmpty(): boolean;
 	clearElements(): void;
 	reset(): void;
 	stringify(): string | null;

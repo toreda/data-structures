@@ -88,9 +88,15 @@ export class ObjectPool<T extends Instance> implements DataStructure<T> {
 	public readonly state: State<T>;
 	private readonly objectClass: Constructor<T>;
 
-	constructor(objectClass: Constructor<T>, options?: Options) {
+	/**
+	 * @param objectClass	Class the pool constructs its objects from. Required.
+	 * @param options		Optional config. Each option falls back to its default
+	 * 						when missing or invalid, so options never throw.
+	 * @throws				When objectClass is not a function.
+	 */
+	constructor(objectClass: Constructor<T>, options?: Options | null) {
 		if (typeof objectClass !== 'function') {
-			throw Error('Must have a class contructor for object pool to operate properly');
+			throw new Error('ObjectPool requires a class constructor');
 		}
 
 		this.objectClass = objectClass;
@@ -233,6 +239,13 @@ export class ObjectPool<T extends Instance> implements DataStructure<T> {
 		return this.state.usedCount;
 	}
 
+	/**
+	 * True when no object is in use, whether or not the pool holds free ones.
+	 */
+	public isEmpty(): boolean {
+		return this.state.usedCount === 0;
+	}
+
 	public utilization(allocationsPending: number = 0): number {
 		if (this.state.objectCount === 0) {
 			return Infinity;
@@ -274,10 +287,10 @@ export class ObjectPool<T extends Instance> implements DataStructure<T> {
 	 *
 	 * @param func			Called with the object, its slot in `state.used`, and
 	 *						`state.used`. Slots from `size()` on hold `null`.
-	 * @param thisArg		`this` inside `func`. Defaults to the pool.
+	 * @param thisArg		`this` inside `func`, as passed. Like
+	 *						`Array.prototype.forEach`, `this` is undefined when omitted.
 	 */
 	public forEach(func: ArrayMethod<T, void>, thisArg?: unknown): ObjectPool<T> {
-		const boundThis = thisArg ? thisArg : this;
 		const used = this.state.used as T[];
 
 		for (let i = this.state.usedCount - 1; i >= 0; i--) {
@@ -286,7 +299,7 @@ export class ObjectPool<T extends Instance> implements DataStructure<T> {
 				continue;
 			}
 
-			func.call(boundThis, used[i], i, used);
+			func.call(thisArg, used[i], i, used);
 		}
 
 		return this;
@@ -294,12 +307,12 @@ export class ObjectPool<T extends Instance> implements DataStructure<T> {
 
 	/**
 	 * New array of the in-use objects in slot order, or of `func`'s result for
-	 * each. Allocates only the returned array.
+	 * each. Allocates only the returned array. `thisArg` is used as `this` in
+	 * `func` as passed, undefined when omitted, like `Array.prototype.map`.
 	 */
 	public map(): T[];
 	public map<U>(func: ArrayMethod<T, U>, thisArg?: unknown): U[];
 	public map<U>(func?: ArrayMethod<T, U>, thisArg?: unknown): U[] | T[] {
-		const boundThis = thisArg ? thisArg : this;
 		const used = this.state.used as T[];
 		const count = this.state.usedCount;
 
@@ -314,7 +327,7 @@ export class ObjectPool<T extends Instance> implements DataStructure<T> {
 
 		const mapped: U[] = new Array(count);
 		for (let i = 0; i < count; i++) {
-			mapped[i] = func.call(boundThis, used[i], i, used);
+			mapped[i] = func.call(thisArg, used[i], i, used);
 		}
 
 		return mapped;
@@ -461,77 +474,43 @@ export class ObjectPool<T extends Instance> implements DataStructure<T> {
 		return Infinity;
 	}
 
-	private parseOptions(options?: Options): State<T> {
+	/**
+	 * Defaults with each valid option applied. An invalid option keeps its
+	 * default instead of throwing, as for every other collection's options.
+	 */
+	private parseOptions(options?: Options | null): State<T> {
 		const state: State<T> = this.getDefaultState();
 
-		if (!options) {
+		if (!options || typeof options !== 'object') {
 			return state;
 		}
 
-		const errors: Error[] = [];
-
-		if (options.autoIncrease != null) {
-			const e = this.getStateErrorsAutoIncrease(options.autoIncrease);
-
-			if (e.length) {
-				errors.push(...e);
-			} else {
-				state.autoIncrease = options.autoIncrease;
-			}
+		if (typeof options.autoIncrease === 'boolean') {
+			state.autoIncrease = options.autoIncrease;
 		}
 
-		if (options.increaseBreakPoint != null) {
-			const e = this.getStateErrorsIncreaseBreakPoint(options.increaseBreakPoint);
-
-			if (e.length) {
-				errors.push(...e);
-			} else {
-				state.increaseBreakPoint = options.increaseBreakPoint;
-			}
+		const breakPoint = options.increaseBreakPoint;
+		if (isNumber(breakPoint) && breakPoint >= 0 && breakPoint <= 1) {
+			state.increaseBreakPoint = breakPoint;
 		}
 
-		if (options.increaseFactor != null) {
-			const e = this.getStateErrorsIncreaseFactor(options.increaseFactor);
-
-			if (e.length) {
-				errors.push(...e);
-			} else {
-				state.increaseFactor = options.increaseFactor;
-			}
+		const factor = options.increaseFactor;
+		if (isNumber(factor) && factor > 1) {
+			state.increaseFactor = factor;
 		}
 
-		if (options.instanceArgs != null) {
-			const e = this.getStateErrorsInstanceArgs(options.instanceArgs);
-
-			if (e.length) {
-				errors.push(...e);
-			} else {
-				state.instanceArgs = options.instanceArgs;
-			}
+		if (Array.isArray(options.instanceArgs)) {
+			state.instanceArgs = options.instanceArgs;
 		}
 
-		if (options.maxSize != null) {
-			const e = this.getStateErrorsMaxSize(options.maxSize);
-
-			if (e.length) {
-				errors.push(...e);
-			} else {
-				state.maxSize = options.maxSize;
-			}
+		const maxSize = options.maxSize;
+		if (isInteger(maxSize) && maxSize >= 1) {
+			state.maxSize = maxSize;
 		}
 
-		if (options.startSize != null) {
-			const e = this.getStateErrorsStartSize(options.startSize);
-
-			if (e.length) {
-				errors.push(...e);
-			} else {
-				state.startSize = options.startSize;
-			}
-		}
-
-		if (errors.length) {
-			throw errors;
+		const startSize = options.startSize;
+		if (isInteger(startSize) && startSize >= 0) {
+			state.startSize = startSize;
 		}
 
 		return state;
@@ -544,7 +523,7 @@ export class ObjectPool<T extends Instance> implements DataStructure<T> {
 			freeCount: 0,
 			used: [],
 			usedCount: 0,
-			autoIncrease: false,
+			autoIncrease: true,
 			startSize: 1,
 			objectCount: 0,
 			maxSize: 1000,
@@ -554,65 +533,5 @@ export class ObjectPool<T extends Instance> implements DataStructure<T> {
 		};
 
 		return state;
-	}
-
-	private getStateErrorsAutoIncrease(data: unknown): Error[] {
-		const errors: Error[] = [];
-
-		if (data == null || typeof data !== 'boolean') {
-			errors.push(Error('state autoIncrease must be a boolean'));
-		}
-
-		return errors;
-	}
-
-	private getStateErrorsIncreaseBreakPoint(data: unknown): Error[] {
-		const errors: Error[] = [];
-
-		if (data == null || !isNumber(data) || data < 0 || data > 1) {
-			errors.push(Error('state increaseBreakPoint must be a number between 0 and 1'));
-		}
-
-		return errors;
-	}
-
-	private getStateErrorsIncreaseFactor(data: unknown): Error[] {
-		const errors: Error[] = [];
-
-		if (data == null || !isNumber(data) || data <= 1) {
-			errors.push(Error('state increaseFactor must be a number > 1'));
-		}
-
-		return errors;
-	}
-
-	private getStateErrorsInstanceArgs(data: unknown): Error[] {
-		const errors: Error[] = [];
-
-		if (data == null || !Array.isArray(data)) {
-			errors.push(Error('state instanceArgs must be an array'));
-		}
-
-		return errors;
-	}
-
-	private getStateErrorsMaxSize(data: unknown): Error[] {
-		const errors: Error[] = [];
-
-		if (data == null || !isInteger(data) || data < 1) {
-			errors.push(Error('state maxSize must be an integer >= 1'));
-		}
-
-		return errors;
-	}
-
-	private getStateErrorsStartSize(data: unknown): Error[] {
-		const errors: Error[] = [];
-
-		if (data == null || !isInteger(data) || data < 0) {
-			errors.push(Error('state startSize must be an integer >= 0'));
-		}
-
-		return errors;
 	}
 }

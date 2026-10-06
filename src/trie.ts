@@ -268,15 +268,19 @@ export class Trie<ItemT> implements DataStructure<ItemT> {
 	 * Whether or not the key changes, item is stored as a fresh insert, so
 	 * query results that matched node no longer delete.
 	 *
+	 * A refused update changes nothing: node keeps its item under its key.
+	 * When item was changed in place to a non-string key, restore it or
+	 * remove node with `removeNode()`, since `remove()` reads the key from the
+	 * item.
+	 *
 	 * @returns		The node now holding item: node itself when the key is
-	 * 				unchanged. Null when it was refused, and `lastError()` then
-	 * 				gives the reason: `undefined_item` when item is undefined
-	 * 				(throws instead when `allowUndefinedItem` is `false`; the key
-	 * 				selector is never called and node keeps its item).
-	 * 				`invalid_key` when the key selector does not return a string
-	 * 				for item: node's item is removed and item is not added.
-	 * 				`node_not_in_trie` when node is null, holds no item, or is
-	 * 				not part of this trie; nothing changes then.
+	 * 				unchanged. Null when it was refused and nothing changed, and
+	 * 				`lastError()` then gives the reason: `undefined_item` when
+	 * 				item is undefined (throws instead when `allowUndefinedItem`
+	 * 				is `false`; the key selector is never called), `invalid_key`
+	 * 				when the key selector does not return a string for item, or
+	 * 				`node_not_in_trie` when node is null, holds no item, or is not
+	 * 				part of this trie.
 	 */
 	public update(node: TrieElement<ItemT> | null, item: ItemT): TrieElement<ItemT> | null {
 		this._lastError = null;
@@ -292,7 +296,6 @@ export class Trie<ItemT> implements DataStructure<ItemT> {
 		const key = this.keySelector(item);
 
 		if (typeof key !== 'string') {
-			this.removeNode(node);
 			return this.refuse('invalid_key');
 		}
 

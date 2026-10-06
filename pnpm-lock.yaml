@@ -260,6 +260,9 @@ importers:
       jest-junit:
         specifier: ^17.0.0
         version: 17.0.0
+      jest-junit-reporter:
+        specifier: ^1.1.0
+        version: 1.1.0
       jsdom:
         specifier: ^30.1.2
         version: 30.1.2
@@ -3634,6 +3637,9 @@ packages:
   jest-jasmine2@27.5.1:
     resolution: {integrity: sha512-jtq7VVyG8SqAorDpApwiJJImd0V2wv1xzdheGHRGyuT7gZm6gG47QEskOlzsN1PG/6WNaCo5pmwMHDf3AkG2pQ==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
+
+  jest-junit-reporter@1.1.0:
+    resolution: {integrity: sha512-beZH/+kAQbECfvXKrm1g0VFxUPC+cezPMHeqhP9y6ThlRjvxFvfwlUQElYIN9P1tW+odHz8nIz9VV2BdWsUlfw==}
 
   jest-junit@17.0.0:
     resolution: {integrity: sha512-RYWCkq4j59gUXj5DsgbIE7xFBZzu1gtibPhyjSjMmGaOTLnqlXhg7x9zuGCwgbCuMAyoyvk0Mi8wSrRR5uOeLA==}
@@ -9683,6 +9689,10 @@ snapshots:
       throat: 6.0.2
     transitivePeerDependencies:
       - supports-color
+
+  jest-junit-reporter@1.1.0:
+    dependencies:
+      xml: 1.0.1
 
   jest-junit@17.0.0:
     dependencies:

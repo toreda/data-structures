@@ -31,7 +31,6 @@ Byte encoding is not part of the base `DataStructure` contract. Each data struct
 * `DataStructure`: `<root>/src/data/structure.ts` (options: `DataStructureOptions`, `<root>/src/data/structure/options.ts`)
 * `ByteDataStructure`: `<root>/src/byte/data/structure.ts`
 * `Tree`: `<root>/src/tree.ts` (nodes implement `TreeElement`: `<root>/src/tree/element.ts`)
-* `List`: `<root>/src/list.ts`
 * `Graph`: `<root>/src/graph.ts` (vertices implement `GraphVertex`: `<root>/src/graph/vertex.ts`; edges implement `GraphEdge`: `<root>/src/graph/edge.ts`)
 
 ### Implementations

@@ -236,12 +236,17 @@ export class RedBlackTree<ItemT> implements Tree<ItemT, RedBlackTreeElement<Item
 	 * allocate nothing: the node is never released or reallocated, so it stays
 	 * valid, and query results that matched it can still `delete()` it.
 	 *
-	 * @returns		node, now holding item, or null when it was refused.
-	 * 				`lastError()` then gives the reason: `duplicate_not_allowed`
-	 * 				when item now compares equal to another item and duplicates
-	 * 				are not allowed: node is removed and item is no longer in the
-	 * 				tree. `node_not_in_tree` when node is null or not part of
-	 * 				this tree; nothing changes then.
+	 * @remarks
+	 * A refused update changes nothing: node keeps its item and position. When
+	 * item was changed in place, it no longer matches node's position, so
+	 * restore it or remove node with `removeNode()`, which works by structure
+	 * rather than by searching.
+	 *
+	 * @returns		node, now holding item, or null when it was refused and
+	 * 				nothing changed. `lastError()` then gives the reason:
+	 * 				`duplicate_not_allowed` when item compares equal to another
+	 * 				item and duplicates are not allowed, or `node_not_in_tree`
+	 * 				when node is null or not part of this tree.
 	 */
 	public update(node: RedBlackTreeElement<ItemT> | null, item: ItemT): RedBlackTreeElement<ItemT> | null {
 		this._lastError = null;
@@ -250,34 +255,34 @@ export class RedBlackTree<ItemT> implements Tree<ItemT, RedBlackTreeElement<Item
 			return this.refuse('node_not_in_tree');
 		}
 
-		node._value = item;
-
 		// Items are in sorted order along the in-order walk and every other node
 		// is correctly placed, so the two neighbors decide whether item still
 		// fits here and, when it does, whether it now equals one of them. Each
-		// neighbor is found once, in O(log n).
+		// neighbor is found once, in O(log n), by structure alone.
 		const prev = this.predecessor(node);
 		const next = this.successor(node);
 		const prevOrder = prev === null ? -1 : this.comparator(prev._value as ItemT, item);
 		const nextOrder = next === null ? -1 : this.comparator(item, next._value as ItemT);
 
 		if (prevOrder > 0 || nextOrder > 0) {
-			this.detach(node);
-
-			if (!this.findSlot(item)) {
-				this._size--;
-				this.discard(node);
+			if (!this.allowDuplicates && this.hasOtherEqual(item, node)) {
 				return this.refuse('duplicate_not_allowed');
 			}
 
+			// Duplicates were ruled out above, so a slot is always found.
+			node._value = item;
+			this.detach(node);
+			this.findSlot(item);
 			this.linkAtSlot(node);
+
 			return node;
 		}
 
 		if (!this.allowDuplicates && (prevOrder === 0 || nextOrder === 0)) {
-			this.removeNode(node);
 			return this.refuse('duplicate_not_allowed');
 		}
+
+		node._value = item;
 
 		return node;
 	}
@@ -1169,6 +1174,45 @@ export class RedBlackTree<ItemT> implements Tree<ItemT, RedBlackTreeElement<Item
 		if (replacement) {
 			replacement._parent = parent;
 		}
+	}
+
+	/**
+	 * True when a node other than skip holds an item comparing equal to item.
+	 * skip's own item is never compared, since it may have been changed in
+	 * place and no longer match skip's position. Only called when duplicates
+	 * are not allowed, so at most one other node can match. Takes O(h).
+	 */
+	private hasOtherEqual(item: ItemT, skip: RedBlackTreeElement<ItemT>): boolean {
+		return this.subtreeHasEqual(this._root, item, skip);
+	}
+
+	private subtreeHasEqual(
+		start: RedBlackTreeElement<ItemT> | null,
+		item: ItemT,
+		skip: RedBlackTreeElement<ItemT>
+	): boolean {
+		let curr = start;
+
+		while (curr) {
+			if (curr === skip) {
+				// Both subtrees are ordered, but skip's item cannot pick between
+				// them, so search each.
+				return (
+					this.subtreeHasEqual(curr._left, item, skip) ||
+					this.subtreeHasEqual(curr._right, item, skip)
+				);
+			}
+
+			const order = this.comparator(item, curr._value as ItemT);
+
+			if (order === 0) {
+				return true;
+			}
+
+			curr = order < 0 ? curr._left : curr._right;
+		}
+
+		return false;
 	}
 
 	private subtreeMin(node: RedBlackTreeElement<ItemT>): RedBlackTreeElement<ItemT> {

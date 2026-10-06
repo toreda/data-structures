@@ -299,14 +299,19 @@ export class QuadTree<ItemT> implements Tree<ItemT, QuadTreeElement<ItemT>> {
 	 * node is unlinked as in `removeNode()` and relinked at the new position.
 	 * Moving a leaf relinks no other node.
 	 *
-	 * @returns		node, which keeps holding item, or null when it was refused.
-	 * 				`lastError()` then gives the reason: `invalid_position` when
-	 * 				the locator does not return finite x and y coordinates
-	 * 				for item, or `duplicate_not_allowed` when another item sits
-	 * 				at the new position and duplicates are not allowed: node is
-	 * 				removed in both cases and item is no longer in the tree.
-	 * 				`node_not_in_tree` when node is null or not part of this
-	 * 				tree; nothing changes then.
+	 * @remarks
+	 * A refused update changes nothing: node keeps its item and position. When
+	 * item was changed in place, its locator now disagrees with node, so either
+	 * restore its position or remove it with `removeNode()`, since `remove()`
+	 * searches by the locator's position.
+	 *
+	 * @returns		node, which keeps holding item, or null when it was refused
+	 * 				and nothing changed. `lastError()` then gives the reason:
+	 * 				`invalid_position` when the locator does not return finite
+	 * 				x and y coordinates for item, `duplicate_not_allowed` when
+	 * 				another item sits at the new position and duplicates are not
+	 * 				allowed, or `node_not_in_tree` when node is null or not part
+	 * 				of this tree.
 	 */
 	public update(node: QuadTreeElement<ItemT> | null, item: ItemT): QuadTreeElement<ItemT> | null {
 		this._lastError = null;
@@ -318,28 +323,26 @@ export class QuadTree<ItemT> implements Tree<ItemT, QuadTreeElement<ItemT>> {
 		const point = this.locator(item);
 
 		if (!this.isPoint(point)) {
-			this.removeNode(node);
 			return this.refuse('invalid_position');
 		}
-
-		node._value = item;
 
 		const x = point.x;
 		const y = point.y;
 
 		if (x === node._x && y === node._y) {
+			node._value = item;
 			return node;
 		}
 
-		this.detach(node);
-
-		// node is out of the tree now, so any match found here is another node.
-		if (!this.findSlot(x, y, !this.allowDuplicates)) {
-			this._size--;
-			this.dropNode(node);
+		// node still sits at its old position, which differs, so any match
+		// found here is another node.
+		if (!this.allowDuplicates && !this.findSlot(x, y, true)) {
 			return this.refuse('duplicate_not_allowed');
 		}
 
+		node._value = item;
+		this.detach(node);
+		this.findSlot(x, y, false);
 		node._x = x;
 		node._y = y;
 		this.attach(node);

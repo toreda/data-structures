@@ -19,7 +19,7 @@ const config: Config = {
 	testEnvironment: 'jest-environment-jsdom',
 	testPathIgnorePatterns: ['node_modules'],
 	testRegex: '(/__tests__/.*|(\\.|/)(spec))\\.ts$',
-	testResultsProcessor: 'jest-sonar-reporter',
+	testResultsProcessor: 'jest-junit-reporter',
 	transform: {'^.+\\.(t|j)sx?$': '@swc/jest'},
 	transformIgnorePatterns: ['node_modules/(?!@ngrx|(?!core-js/)|(?!deck.gl)|ng-dynamic)']
 };
